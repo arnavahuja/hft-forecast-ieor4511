@@ -21,12 +21,14 @@ from hft_forecast.core.interfaces import DataSource
 from hft_forecast.core.params import SourceParams
 from hft_forecast.core.registry import register
 from hft_forecast.core.types import (
+    BAR_LABEL_KEY,
     AssetClass,
     DataRequest,
     DatasetInfo,
     Frequency,
     Instrument,
     MarketData,
+    TimeArray,
 )
 from hft_forecast.data.normalize import normalize_frame
 
@@ -34,6 +36,13 @@ _DEFAULT_SEED: Final = 7
 _BASE_PRICE: Final = 100.0
 _BASE_VOLUME: Final = 1_000_000.0
 _INTRADAY_RANGE: Final = 0.01
+SUBMINUTE: Final = (Frequency.S1, Frequency.S5, Frequency.S10, Frequency.S30)
+QUOTE_FREQUENCIES: Final = (*SUBMINUTE, Frequency.MIN1, Frequency.MIN5)
+_BASE_SPREAD_BPS: Final = 2.0
+_BASE_QUOTE_SIZE: Final = 500.0
+_QUOTES_PER_SECOND: Final = 2.0
+_HALT_SECONDS: Final = 600
+"""Length of the single trading halt injected into every instrument's quote series."""
 FACTORS_ID: Final = "FF"
 FACTOR_NAMES: Final = ("mkt_rf", "smb", "hml", "rmw", "cma", "mom", "rf")
 SMALL_FACTOR_VOL: Final = 0.08
@@ -50,6 +59,9 @@ class SyntheticParams(SourceParams):
     annual_drift: float = Field(0.07, description="Annual drift of log prices")
     annual_vol: float = Field(0.2, gt=0, description="Annual volatility")
     market_beta: float = Field(0.8, ge=0, le=1.5, description="Loading on a common factor")
+    stale_rate: float = Field(
+        0.02, ge=0, lt=1, description="Share of quote bars with no NBBO update (mid carried)"
+    )
 
 
 @register(
@@ -57,7 +69,7 @@ class SyntheticParams(SourceParams):
     name="synthetic",
     version="1.0.0",
     tags=["synthetic", "offline", "demo"],
-    capabilities={"asset:equity", "freq:daily", "freq:intraday"},
+    capabilities={"asset:equity", "freq:daily", "freq:intraday", "freq:subminute"},
 )
 class SyntheticSource(DataSource):
     """Deterministic synthetic OHLCV for demos and tests (no network needed)."""
@@ -89,6 +101,16 @@ class SyntheticSource(DataSource):
                 quality="synthetic",
                 notes="Market factor matches the common factor of the 'gbm' dataset.",
             ),
+            DatasetInfo(
+                source="synthetic",
+                dataset="quotes",
+                description="Sub-minute NBBO quote bars (mid random walk, bar-end labelled)",
+                frequencies=QUOTE_FREQUENCIES,
+                asset_classes=(AssetClass.EQUITY,),
+                fields=(*C.OHLCV, *C.QUOTE_FIELDS),
+                quality="synthetic",
+                notes="Injects stale bars at 'stale_rate' and one halt per instrument.",
+            ),
         ]
 
     def search_instruments(self, query: str) -> list[Instrument]:
@@ -100,6 +122,8 @@ class SyntheticSource(DataSource):
         """Generate deterministic daily bars (or factor returns)."""
         if request.dataset == "ff_factors":
             return self._factors(request)
+        if request.dataset == "quotes":
+            return self._quotes(request)
         if request.frequency is not Frequency.D1:
             raise DataError("The synthetic source only generates daily bars")
         if not request.instruments:
@@ -185,4 +209,94 @@ class SyntheticSource(DataSource):
                 )
             },
             metadata={"source": "synthetic", "dataset": "ff_factors"},
+        )
+
+    def _quote_grid(self, request: DataRequest) -> TimeArray:
+        """Bar-end timestamps of every regular-session bar in the range (right-closed)."""
+        seconds = request.frequency.seconds
+        if seconds is None or request.frequency not in QUOTE_FREQUENCIES:
+            raise DataError(
+                f"'quotes' needs a sub-minute or minute frequency, got {request.frequency}"
+            )
+        calendar = TradingCalendar()
+        step = np.timedelta64(seconds, "s")
+        blocks = []
+        for session in calendar.sessions(request.start, request.end):
+            open_utc, close_utc = calendar.session_bounds(session)
+            # first bar ends one step after the open, last bar ends at the close
+            blocks.append(
+                np.arange(open_utc + step, close_utc + step, step, dtype="datetime64[us]")
+            )
+        if not blocks:
+            raise DataError("No sessions in the requested range")
+        return np.concatenate(blocks)
+
+    def _quotes(self, request: DataRequest) -> MarketData:
+        """Quote bars: a mid random walk with a log-normal spread and Poisson sizes."""
+        if not request.instruments:
+            raise DataError("Synthetic requests need instrument ids")
+        grid = self._quote_grid(request)
+        seconds = request.frequency.seconds
+        assert seconds is not None  # _quote_grid rejects non-intraday frequencies
+        n = len(grid)
+        seed = int(request.options.get("seed", _DEFAULT_SEED))
+        p = self.params
+        ppy = TradingCalendar().periods_per_year(request.frequency)
+        step_vol = p.annual_vol / np.sqrt(ppy)
+        market = np.random.default_rng(seed).standard_normal(n)
+        frames = []
+        for inst in request.instruments:
+            rng = np.random.default_rng(_instrument_seed(seed, inst))
+            beta = p.market_beta
+            shock = beta * market + np.sqrt(max(1.0 - beta**2, 0.0)) * rng.standard_normal(n)
+            true_mid = _BASE_PRICE * rng.uniform(0.5, 2.0) * np.exp(np.cumsum(step_vol * shock))
+            stale = rng.random(n) < p.stale_rate
+            halt_bars = max(_HALT_SECONDS // seconds, 1)
+            halt_at = int(rng.integers(0, max(n - halt_bars, 1)))
+            stale[halt_at : halt_at + halt_bars] = True
+            stale[0] = False  # the first bar must carry a quote for the forward fill
+            # a stale bar carries the last observed mid forward
+            last = np.maximum.accumulate(np.where(stale, 0, np.arange(n)))
+            mid = true_mid[last]
+            spread = mid * _BASE_SPREAD_BPS * 1e-4 * rng.lognormal(0.0, 0.3, n)
+            bid_size = rng.poisson(_BASE_QUOTE_SIZE, n).astype(float) + 1.0
+            ask_size = rng.poisson(_BASE_QUOTE_SIZE, n).astype(float) + 1.0
+            bid, ask = mid - spread / 2.0, mid + spread / 2.0
+            prev_mid = np.concatenate(([mid[0]], mid[:-1]))
+            intrabar = np.abs(rng.normal(0.0, step_vol, n)) * mid
+            quotes = np.where(stale, 0.0, rng.poisson(_QUOTES_PER_SECOND * seconds, n) + 1.0)
+            frames.append(
+                pl.DataFrame(
+                    {
+                        C.TIMESTAMP: grid,
+                        C.INSTRUMENT: [inst] * n,
+                        C.OPEN: prev_mid,
+                        C.HIGH: np.maximum(prev_mid, mid) + np.where(stale, 0.0, intrabar),
+                        C.LOW: np.minimum(prev_mid, mid) - np.where(stale, 0.0, intrabar),
+                        C.CLOSE: mid,
+                        C.BID: bid,
+                        C.ASK: ask,
+                        C.BID_SIZE: bid_size,
+                        C.ASK_SIZE: ask_size,
+                        C.MID: mid,
+                        C.MICROPRICE: (bid * ask_size + ask * bid_size) / (bid_size + ask_size),
+                        C.SPREAD: spread,
+                        C.SPREAD_BPS: spread / mid * 1e4,
+                        C.MID_TWAP: (prev_mid + mid) / 2.0,
+                        C.N_QUOTES: quotes,
+                        C.IS_STALE: stale.astype(float),
+                    }
+                )
+            )
+        return MarketData(
+            normalize_frame(pl.concat(frames)),
+            request.frequency,
+            {i: Instrument(id=i, symbol=i) for i in request.instruments},
+            metadata={
+                "source": "synthetic",
+                "dataset": "quotes",
+                "quality": "synthetic",
+                C.PRICE_BASIS_KEY: "mid",
+                BAR_LABEL_KEY: "end",
+            },
         )
