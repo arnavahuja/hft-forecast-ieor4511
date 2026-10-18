@@ -8,7 +8,13 @@ import pytest
 
 from hft_forecast.core import columns as C
 from hft_forecast.core.errors import DataError
-from hft_forecast.core.types import DataRequest, MarketData, TargetFrame, TargetKind
+from hft_forecast.core.types import (
+    DataRequest,
+    Frequency,
+    MarketData,
+    TargetFrame,
+    TargetKind,
+)
 
 
 def _md() -> MarketData:
@@ -71,3 +77,23 @@ def test_target_frame_validates_shape_and_reindexes():
     assert np.all(re.values[:, 0] == 1.0)
     assert np.all(np.isnan(re.values[:, 1]))
     assert tf.to_long().height == 6
+
+
+@pytest.mark.parametrize(
+    ("frequency", "seconds", "minutes"),
+    [
+        (Frequency.S1, 1, None),
+        (Frequency.S5, 5, None),
+        (Frequency.S30, 30, None),
+        (Frequency.MIN1, 60, 1),
+        (Frequency.MIN15, 900, 15),
+        (Frequency.H1, 3600, 60),
+        (Frequency.D1, None, None),
+        (Frequency.MO1, None, None),
+    ],
+)
+def test_frequency_seconds_and_whole_minutes(frequency, seconds, minutes):
+    assert frequency.seconds == seconds
+    assert frequency.minutes == minutes  # None whenever the bar is not a whole minute
+    assert frequency.is_intraday == (seconds is not None)
+    assert frequency.is_subminute == (seconds is not None and seconds < 60)

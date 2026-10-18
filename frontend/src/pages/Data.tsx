@@ -40,7 +40,19 @@ const CANONICAL = [
   'dividend',
   'split_ratio',
 ] as const
-const FREQUENCIES = ['1min', '5min', '15min', '1h', '1d', '1w', '1mo'] as const
+const FREQUENCIES = [
+  '1s',
+  '5s',
+  '10s',
+  '30s',
+  '1min',
+  '5min',
+  '15min',
+  '1h',
+  '1d',
+  '1w',
+  '1mo',
+] as const
 
 type Preview = Schemas['ImportPreviewOut']
 

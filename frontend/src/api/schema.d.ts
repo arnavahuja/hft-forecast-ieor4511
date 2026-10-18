@@ -1712,10 +1712,10 @@ export interface components {
     }
     /**
      * Frequency
-     * @description Bar frequency. Minimum supported bar size is one minute.
+     * @description Bar frequency. Minimum supported bar size is one second.
      * @enum {string}
      */
-    Frequency: '1min' | '5min' | '15min' | '1h' | '1d' | '1w' | '1mo'
+    Frequency: '1s' | '5s' | '10s' | '30s' | '1min' | '5min' | '15min' | '1h' | '1d' | '1w' | '1mo'
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */

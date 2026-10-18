@@ -55,8 +55,12 @@ class AssetClass(StrEnum):
 
 
 class Frequency(StrEnum):
-    """Bar frequency. Minimum supported bar size is one minute."""
+    """Bar frequency. Minimum supported bar size is one second."""
 
+    S1 = "1s"
+    S5 = "5s"
+    S10 = "10s"
+    S30 = "30s"
     MIN1 = "1min"
     MIN5 = "5min"
     MIN15 = "15min"
@@ -68,20 +72,43 @@ class Frequency(StrEnum):
     @property
     def is_intraday(self) -> bool:
         """Whether bars are shorter than one trading session."""
-        return self in _INTRADAY_MINUTES
+        return self in _INTRADAY_SECONDS
+
+    @property
+    def is_subminute(self) -> bool:
+        """Whether bars are shorter than one minute."""
+        seconds = self.seconds
+        return seconds is not None and seconds < SECONDS_PER_MINUTE
+
+    @property
+    def seconds(self) -> int | None:
+        """Bar length in seconds for intraday frequencies, else ``None``."""
+        return _INTRADAY_SECONDS.get(self)
 
     @property
     def minutes(self) -> int | None:
-        """Bar length in minutes for intraday frequencies, else ``None``."""
-        return _INTRADAY_MINUTES.get(self)
+        """Bar length in whole minutes, or ``None`` when not intraday or not a whole minute."""
+        seconds = self.seconds
+        if seconds is None or seconds % SECONDS_PER_MINUTE:
+            return None
+        return seconds // SECONDS_PER_MINUTE
 
 
-_INTRADAY_MINUTES: Final[dict[Frequency, int]] = {
-    Frequency.MIN1: 1,
-    Frequency.MIN5: 5,
-    Frequency.MIN15: 15,
-    Frequency.H1: 60,
+SECONDS_PER_MINUTE: Final = 60
+
+_INTRADAY_SECONDS: Final[dict[Frequency, int]] = {
+    Frequency.S1: 1,
+    Frequency.S5: 5,
+    Frequency.S10: 10,
+    Frequency.S30: 30,
+    Frequency.MIN1: 60,
+    Frequency.MIN5: 300,
+    Frequency.MIN15: 900,
+    Frequency.H1: 3600,
 }
+
+BAR_LABEL_KEY: Final = "bar_label"
+"""MarketData metadata key: ``"end"`` (right-closed, labelled at the bar end) or ``"start"``."""
 
 
 class Adjustment(StrEnum):

@@ -11,6 +11,11 @@ from hft_forecast.core.errors import ConfigError
 from hft_forecast.core.types import FloatArray, Frequency, IntArray, TimeArray
 
 _UNITS: Final = {
+    Frequency.S1: ("s", 1),
+    Frequency.S5: ("s", 5),
+    Frequency.S10: ("s", 10),
+    Frequency.S30: ("s", 30),
+    Frequency.MIN1: ("m", 1),
     Frequency.MIN5: ("m", 5),
     Frequency.MIN15: ("m", 15),
     Frequency.H1: ("h", 1),

@@ -18,6 +18,7 @@ from hft_forecast.core.interfaces import (
     ENGINE_VECTORIZED,
     FREQ_DAILY,
     FREQ_INTRADAY,
+    FREQ_SUBMINUTE,
     NEEDS_BENCHMARK,
     Overlay,
     Strategy,
@@ -63,6 +64,24 @@ def _freq_caps(caps: frozenset[str]) -> set[str]:
     return {c for c in caps if c.startswith("freq:")}
 
 
+def _check_frequency(config: BacktestConfig, spec: PluginSpec[Any], fld: str, out: _Issues) -> None:
+    """A plugin that declares any ``freq:*`` capability must declare the one it is run on.
+
+    Sub-minute bars need both ``freq:intraday`` and ``freq:subminute``: most plugins written
+    for daily or minute bars have windows and schedules that are meaningless at 5 s.
+    """
+    caps = _freq_caps(spec.capabilities)
+    if not caps:
+        return
+    frequency = config.data.frequency
+    wanted = [FREQ_INTRADAY if frequency.is_intraday else FREQ_DAILY]
+    if frequency.is_subminute:
+        wanted.append(FREQ_SUBMINUTE)
+    for want in wanted:
+        if want not in caps:
+            out.err(fld, f"{spec.kind} '{spec.name}' does not support {want}")
+
+
 class _Issues:
     """Collects issues."""
 
@@ -87,7 +106,11 @@ class CompatibilityChecker:
             out.err("execution.engine", f"Unknown engine '{engine}'")
         strategy = self._check_strategy(config, out)
         if config.constructor is not None:
-            self._resolve(PluginKind.PORTFOLIO_CONSTRUCTOR, config.constructor, "constructor", out)
+            spec = self._resolve(
+                PluginKind.PORTFOLIO_CONSTRUCTOR, config.constructor, "constructor", out
+            )
+            if spec is not None:
+                _check_frequency(config, spec, "constructor", out)
         self._check_overlays(config, strategy, out)
         self._check_costs(config, out)
         self._check_data(config, out)
@@ -107,10 +130,7 @@ class CompatibilityChecker:
             )
         if engine == "event" and not (cls.implements_event() or cls.implements_vectorized()):
             out.err("strategy", f"Strategy '{strategy.name}' implements neither form")
-        freq_caps = _freq_caps(strategy.capabilities)
-        want = FREQ_INTRADAY if config.data.frequency.is_intraday else FREQ_DAILY
-        if freq_caps and want not in freq_caps:
-            out.err("data.frequency", f"Strategy '{strategy.name}' does not support {want}")
+        _check_frequency(config, strategy, "data.frequency", out)
         if NEEDS_BENCHMARK in strategy.capabilities and not config.benchmark:
             out.err("benchmark", f"Strategy '{strategy.name}' needs a benchmark")
         if cls.output_kind is TargetKind.SIGNALS and config.constructor is None:
@@ -149,6 +169,7 @@ class CompatibilityChecker:
                 )
             if NEEDS_BENCHMARK in spec.capabilities and not config.benchmark:
                 out.err(fld, f"Overlay '{spec.name}' needs a benchmark")
+            _check_frequency(config, spec, fld, out)
 
     def _check_costs(self, config: BacktestConfig, out: _Issues) -> None:
         engine = config.execution.engine

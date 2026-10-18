@@ -4025,6 +4025,10 @@
       "Frequency": {
         "type": "string",
         "enum": [
+          "1s",
+          "5s",
+          "10s",
+          "30s",
           "1min",
           "5min",
           "15min",
@@ -4034,7 +4038,7 @@
           "1mo"
         ],
         "title": "Frequency",
-        "description": "Bar frequency. Minimum supported bar size is one minute."
+        "description": "Bar frequency. Minimum supported bar size is one second."
       },
       "HTTPValidationError": {
         "properties": {

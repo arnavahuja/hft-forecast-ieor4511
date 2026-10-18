@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from hft_forecast.core.errors import ConfigError
-from hft_forecast.core.types import Frequency, MarketData, TimeArray
+from hft_forecast.core.types import Frequency, IntArray, MarketData, TimeArray
 
 _CALENDAR_SAMPLE_START: Final = date(2010, 1, 1)
 _CALENDAR_SAMPLE_END: Final = date(2019, 12, 31)
@@ -23,6 +23,7 @@ WEEKS_PER_YEAR: Final = 52.0
 MONTHS_PER_YEAR: Final = 12.0
 DAYS_PER_YEAR: Final = 365.25
 SECONDS_PER_DAY: Final = 86_400.0
+_SECONDS_PER_MINUTE: Final = 60.0
 
 
 @lru_cache(maxsize=16)
@@ -84,10 +85,57 @@ class TradingCalendar:
         sessions = self.sessions_per_year()
         if frequency is Frequency.D1:
             return sessions
-        minutes = frequency.minutes
-        if minutes is None:  # pragma: no cover - exhaustive above
+        seconds = frequency.seconds
+        if seconds is None:  # pragma: no cover - exhaustive above
             raise ConfigError(f"Unsupported frequency {frequency}")
-        return sessions * np.ceil(self.session_minutes() / minutes)
+        return sessions * np.ceil(self.session_minutes() * _SECONDS_PER_MINUTE / seconds)
+
+    def session_bounds(self, day: date) -> tuple[np.datetime64, np.datetime64]:
+        """UTC open and close of ``day``'s regular session (honours early closes).
+
+        Raises:
+            ConfigError: If ``day`` is not a trading session on this calendar.
+        """
+        cal = self._cal
+        stamp = pd.Timestamp(day)
+        if not cal.is_session(stamp):  # type: ignore[attr-defined]
+            raise ConfigError(f"{day} is not a session on calendar '{self.name}'")
+        row = cal.schedule.loc[stamp]  # type: ignore[attr-defined]
+        return (
+            np.datetime64(row["open"].tz_convert("UTC").tz_localize(None), "us"),
+            np.datetime64(row["close"].tz_convert("UTC").tz_localize(None), "us"),
+        )
+
+    def session_ids(self, timestamps: TimeArray) -> IntArray:
+        """Session index per timestamp, as days since the epoch of the local session date.
+
+        Computed from the calendar's own session boundaries, never by truncating a UTC
+        timestamp to a date: a 16:00 New York close is 20:00 or 21:00 UTC, so UTC-date
+        grouping splits a session in two whenever a session runs past midnight UTC and
+        shifts with daylight saving time.
+
+        Timestamps outside every session get ``-1``.
+        """
+        out = np.full(len(timestamps), -1, dtype=np.int64)
+        if not len(timestamps):
+            return out
+        stamps = timestamps.astype("datetime64[us]")
+        days = self.sessions(
+            stamps.min().astype("datetime64[D]").astype(date),
+            stamps.max().astype("datetime64[D]").astype(date),
+        )
+        if not days:
+            return out
+        bounds = [self.session_bounds(day) for day in days]
+        opens = np.array([b[0] for b in bounds], dtype="datetime64[us]")
+        closes = np.array([b[1] for b in bounds], dtype="datetime64[us]")
+        ids = np.array(days, dtype="datetime64[D]").astype(np.int64)
+        # sessions are disjoint and ordered, so the candidate session is the last one that
+        # opened at or before the timestamp
+        idx = np.searchsorted(opens, stamps, side="right") - 1
+        inside = (idx >= 0) & (stamps <= closes[np.clip(idx, 0, None)])
+        out[inside] = ids[idx[inside]]
+        return out
 
 
 def infer_periods_per_year(timestamps: TimeArray) -> float | None:
