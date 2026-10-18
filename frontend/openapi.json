@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Backbone API",
+    "title": "hft-forecast API",
     "description": "Local strategy research and backtesting platform.",
     "version": "0.1.0"
   },
@@ -2812,18 +2812,6 @@
             ],
             "title": "Benchmark"
           },
-          "factors": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Factors",
-            "description": "'source:dataset' of factor returns for attribution"
-          },
           "risk_free": {
             "anyOf": [
               {
@@ -2834,7 +2822,7 @@
               }
             ],
             "title": "Risk Free",
-            "description": "'source:dataset[:field]' of per-period risk-free returns (e.g. 'wrds:ff_factors:rf'): cash earns it and Sharpe-type metrics use excess returns"
+            "description": "'source:dataset[:field]' of per-period risk-free returns: cash earns it and Sharpe-type metrics use excess returns"
           },
           "initial_capital": {
             "type": "number",
@@ -2961,18 +2949,6 @@
             ],
             "title": "Benchmark"
           },
-          "factors": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Factors",
-            "description": "'source:dataset' of factor returns for attribution"
-          },
           "risk_free": {
             "anyOf": [
               {
@@ -2983,7 +2959,7 @@
               }
             ],
             "title": "Risk Free",
-            "description": "'source:dataset[:field]' of per-period risk-free returns (e.g. 'wrds:ff_factors:rf'): cash earns it and Sharpe-type metrics use excess returns"
+            "description": "'source:dataset[:field]' of per-period risk-free returns: cash earns it and Sharpe-type metrics use excess returns"
           },
           "initial_capital": {
             "type": "number",
@@ -3781,34 +3757,6 @@
           "options": {
             "type": "object",
             "title": "Options"
-          },
-          "options_chain": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Options Chain",
-            "description": "'source:dataset' of option chains for option overlays/strategies"
-          },
-          "extra_datasets": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Extra Datasets",
-            "description": "'source:dataset' entries (e.g. fundamentals) as-of joined onto the prices"
-          },
-          "splices": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Splices",
-            "description": "'TARGET=source:dataset:SERIES' entries: before TARGET has prices, its returns come from SERIES (e.g. 'IEF=wrds:crsp_treasury:B10RET')"
           }
         },
         "additionalProperties": false,

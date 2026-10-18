@@ -3,7 +3,7 @@
 Template: [`templates/example_overlay.py`](../../templates/example_overlay.py)
 
 ```bash
-backbone new overlay my_overlay
+hftf new overlay my_overlay
 ```
 
 Overlays take proposed targets and return modified targets. They run in the order chosen in
@@ -28,7 +28,3 @@ shows it.
 
 The event form reads `ctx.target_weights()` and calls `ctx.set_target_weights(...)`. Declare
 `capabilities` with `engine:event` when you implement it.
-
-Overlays that need extra instruments (for example rolling options) can define
-`synthetic_instruments(data, chain) -> MarketData | None`. The runner adds those instruments
-to the data before the engine runs; see `portfolio/overlays/options.py`.

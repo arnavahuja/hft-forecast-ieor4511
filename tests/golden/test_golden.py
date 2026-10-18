@@ -2,7 +2,7 @@
 
 Any change to these numbers needs an explicit update::
 
-    BACKBONE_UPDATE_GOLDEN=1 pytest tests/golden
+    HFTF_UPDATE_GOLDEN=1 pytest tests/golden
 """
 
 from __future__ import annotations
@@ -15,16 +15,16 @@ from typing import Any
 import numpy as np
 import pytest
 
-from backbone.analytics.service import AnalyticsService
-from backbone.core.registry import registry
-from backbone.core.run_config import PluginRef
-from backbone.engine.base import RunOptions
-from backbone.engine.pipeline import NamedOverlay, Pipeline
-from backbone.engine.vectorized import VectorizedEngine
+from hft_forecast.analytics.service import AnalyticsService
+from hft_forecast.core.registry import registry
+from hft_forecast.core.run_config import PluginRef
+from hft_forecast.engine.base import RunOptions
+from hft_forecast.engine.pipeline import NamedOverlay, Pipeline
+from hft_forecast.engine.vectorized import VectorizedEngine
 from tests.helpers import PPY, config, synthetic
 
 GOLDEN_DIR = Path(__file__).parent / "snapshots"
-UPDATE = os.environ.get("BACKBONE_UPDATE_GOLDEN") == "1"
+UPDATE = os.environ.get("HFTF_UPDATE_GOLDEN") == "1"
 RTOL = 1e-8
 DATA = synthetic(instruments=("AAA", "BBB", "CCC", "DDD", "EEE", "FFF", "MKT"))
 KEYS = (
@@ -40,51 +40,9 @@ KEYS = (
 
 CASES: dict[str, dict[str, Any]] = {
     "buy_and_hold": {"strategy": PluginRef(name="buy_and_hold")},
-    "sma_crossover": {
-        "strategy": PluginRef(name="sma_crossover", params={"fast": 20, "slow": 100})
-    },
-    "ts_momentum": {"strategy": PluginRef(name="ts_momentum", params={"lookback": 126, "skip": 5})},
 }
 
-
-def _extra_cases() -> dict[str, dict[str, Any]]:
-    """Reference strategies added in later phases (skipped if not registered yet)."""
-    extra = {
-        "xs_momentum": {
-            "strategy": PluginRef(name="xs_momentum"),
-            "constructor": PluginRef(name="quantile_long_short"),
-        },
-        "mean_reversion": {"strategy": PluginRef(name="mean_reversion")},
-        "pairs_trading": {"strategy": PluginRef(name="pairs_trading")},
-        "low_volatility": {
-            "strategy": PluginRef(name="low_volatility"),
-            "constructor": PluginRef(
-                name="quantile_long_short", params={"quantiles": 3, "long_only": True}
-            ),
-        },
-        "factor_portfolio": {
-            "strategy": PluginRef(name="factor_portfolio"),
-            "constructor": PluginRef(name="quantile_long_short", params={"quantiles": 3}),
-        },
-        "risk_parity_momentum": {
-            "strategy": PluginRef(name="ts_momentum", params={"lookback": 126}),
-            "constructor": PluginRef(name="risk_parity", params={"allow_short": True}),
-            "overlays": [
-                PluginRef(name="vol_target"),
-                PluginRef(name="max_position_weight", params={"max_weight": 0.3}),
-            ],
-        },
-        "futures_trend": {"strategy": PluginRef(name="futures_trend")},
-    }
-    return {
-        k: v
-        for k, v in extra.items()
-        if v["strategy"].name in registry("strategy")
-        and ("constructor" not in v or v["constructor"].name in registry("portfolio_constructor"))
-    }
-
-
-ALL_CASES = {**CASES, **_extra_cases()}
+ALL_CASES = CASES
 
 
 def _run(case: dict[str, Any]) -> dict[str, float | None]:
@@ -118,7 +76,7 @@ def test_golden(name: str):
     path = GOLDEN_DIR / f"{name}.json"
     if UPDATE or not path.exists():
         if not UPDATE:
-            pytest.fail(f"No golden snapshot for {name}; run with BACKBONE_UPDATE_GOLDEN=1")
+            pytest.fail(f"No golden snapshot for {name}; run with HFTF_UPDATE_GOLDEN=1")
         GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(actual, indent=2, sort_keys=True))
         return

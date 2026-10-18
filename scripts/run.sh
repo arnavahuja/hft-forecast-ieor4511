@@ -6,7 +6,7 @@ PNPM="${PNPM:-pnpm}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-"$PYTHON" -m backbone.cli serve &
+"$PYTHON" -m hft_forecast.cli serve &
 API_PID=$!
 trap 'kill $API_PID 2>/dev/null || true' EXIT INT TERM
 

@@ -4,16 +4,16 @@ One short summary per phase: what was built, what was deferred, known limitation
 
 ## Phase 0: Foundation
 
-**Built.** `pyproject.toml` (editable install into the `backbone` conda env), Makefile
+**Built.** `pyproject.toml` (editable install into the `hft_forecast` conda env), Makefile
 (`make dev/test/lint/typecheck/imports/check/run`), pre-commit config, `.env.example`, ADRs.
 `core`: immutable domain types (`Instrument`, `DataRequest`, `MarketData`, `TargetFrame`,
 `Order`, `Fill`, `Position`, `PortfolioState`), canonical column names, error hierarchy rooted
 at `BackboneError`, pydantic-settings config, structlog logging, trading calendar, interfaces
 for all ten plugin kinds, the generic `Registry[T]` with `@register`, and discovery of
-built-in packages, `user_plugins/` and the `backbone.plugins` entry-point group. Import
+built-in packages, `user_plugins/` and the `hft_forecast.plugins` entry-point group. Import
 failures are recorded (plugin health), duplicates raise.
 
-**Demo.** `backbone plugins`; `pytest tests/unit/core`.
+**Demo.** `hft_forecast plugins`; `pytest tests/unit/core`.
 
 ## Phase 1: Data
 
@@ -29,9 +29,9 @@ providers (static, point-in-time liquidity top-N).
 **Limitations.** Interior gaps in a cached range are not back-filled (only extensions at
 either end). Yahoo intraday is limited by Yahoo's own windows.
 
-**Demo.** `backbone data pull SPY TLT --start 2018-01-01 --end 2020-12-31`, then again with a
-later `--end` (only the new range is fetched); `backbone data import my.csv`;
-`backbone data catalog`.
+**Demo.** `hftf data pull SPY TLT --start 2018-01-01 --end 2020-12-31`, then again with a
+later `--end` (only the new range is fetched); `hftf data import my.csv`;
+`hftf data catalog`.
 
 ## Phase 2: Vectorized engine
 
@@ -43,14 +43,14 @@ interest) and slippage (half spread, volatility-scaled, square-root impact). Ref
 strategies: buy and hold, SMA crossover, time-series momentum. All metric groups (return,
 risk, risk-adjusted incl. PSR/DSR, drawdown, benchmark-relative, trades, portfolio, costs,
 statistical with stationary bootstrap, factor). SQLite + Parquet run store, runner with
-compatibility checker, CLI `backbone run config.yaml`, lookahead truncation check.
+compatibility checker, CLI `hftf run config.yaml`, lookahead truncation check.
 
 **Tests.** Hand-computed engine cases, Hypothesis invariants (zero-cost buy and hold equals
 the asset return; cash + positions reconcile to equity), metrics cross-checked against
 empyrical, golden snapshots, lookahead on every shipped strategy plus a negative control,
 determinism, generic plugin-contract suite.
 
-**Demo.** `backbone run configs/examples/sma_synthetic.yaml` (offline) or
+**Demo.** `hftf run configs/examples/sma_synthetic.yaml` (offline) or
 `configs/examples/sma_spy_yahoo.yaml`.
 
 ## Phase 3: API and UI
@@ -149,7 +149,7 @@ mapping).
 ## Phase 11: Polish
 
 How-to guides for every plugin kind (`docs/howto/`), copyable templates (`templates/`),
-`backbone new <kind> <name>` scaffolding with a generated test, hot reload of
+`hftf new <kind> <name>` scaffolding with a generated test, hot reload of
 `user_plugins/` (compiled from source so edits are never hidden by cached bytecode),
 engine profiling (`scripts/profile_engines.py`, `docs/performance.md`), Playwright smoke
 tests (run, results, compare, research sweep, no-purple check).
@@ -166,7 +166,7 @@ Strategies `trailing_return`, `field_signal`, `composite_signal`, `fixed_weights
 `trend_filter`. Value-weighted, capped legs in `quantile_long_short`. Run-level risk-free
 series (cash interest and excess-return Sharpe), splices, `source:dataset:SYMBOL`
 benchmarks, month matching across sources, CAPM metrics. Compare page report export (CSV +
-PNG), `backbone preset import`. See `docs/howto/08-factor-portfolios-and-reports.md`.
+PNG), `hft_forecast preset import`. See `docs/howto/08-factor-portfolios-and-reports.md`.
 
 **Acceptance.** `tests/integration/test_factor_benchmarks.py` (fake WRDS).
 

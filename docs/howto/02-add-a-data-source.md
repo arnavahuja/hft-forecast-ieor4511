@@ -3,7 +3,7 @@
 Template: [`templates/example_data_source.py`](../../templates/example_data_source.py)
 
 ```bash
-backbone new data_source my_vendor
+hftf new data_source my_vendor
 ```
 
 A data source implements three methods:
@@ -16,9 +16,9 @@ A data source implements three methods:
 
 The canonical format is a polars frame with `timestamp` (UTC), `instrument_id` and one
 column per field (`open, high, low, close, volume`, plus anything extra). Run it through
-`backbone.data.normalize.normalize_frame` to cast types, sort and remove duplicates. Pass
-`Instrument` metadata (multiplier, asset class, expiry) to `MarketData` so engines size
-futures and options correctly.
+`hft_forecast.data.normalize.normalize_frame` to cast types, sort and remove duplicates. Pass
+`Instrument` metadata (multiplier, asset class) to `MarketData` so engines size positions
+correctly.
 
 `DataService` handles caching (Parquet, versioned), validation and the catalog. Your source
 only fetches. Credentials come from `.env` through `self.env`, never from params. Override

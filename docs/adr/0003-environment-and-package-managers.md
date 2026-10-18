@@ -4,10 +4,10 @@ Status: accepted
 
 ## Context
 The design doc assumes `uv` for Python. The owner provided a conda environment named
-`backbone` and asked that all Python packages be installed into it with `pip`.
+`hft_forecast` and asked that all Python packages be installed into it with `pip`.
 
 ## Decision
-- Python: `pip install -e ".[dev]"` inside the `backbone` conda env. `pyproject.toml` remains
+- Python: `pip install -e ".[dev]"` inside the `hft_forecast` conda env. `pyproject.toml` remains
   the single source of dependency truth, so switching to `uv` later needs no code change.
 - Front end: `pnpm` as the design doc recommends (installed globally via npm).
 - The Makefile uses `$CONDA_PREFIX/bin/python` when a conda env is active.

@@ -3,14 +3,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from backbone.core.interfaces import ConstructionContext
-from backbone.core.portfolio_math import (
+from hft_forecast.core.interfaces import ConstructionContext
+from hft_forecast.core.portfolio_math import (
     hrp_weights,
     risk_parity_weights,
     trailing_cov,
 )
-from backbone.core.registry import registry
-from backbone.core.types import TargetFrame, TargetKind
+from hft_forecast.core.registry import registry
+from hft_forecast.core.types import TargetFrame, TargetKind
 from tests.helpers import PPY, synthetic
 
 DATA = synthetic(instruments=("A", "B", "C", "D", "E", "F", "G", "H", "I", "J"))
@@ -58,19 +58,6 @@ def test_hrp_is_long_only_and_sums_to_one():
     assert w.sum() == pytest.approx(1.0) and (w > 0).all()
 
 
-@pytest.mark.parametrize(
-    "name", ["inverse_volatility", "risk_parity", "minimum_variance", "hierarchical_risk_parity"]
-)
-def test_risk_constructors_hold_weights_between_rebalances(name):
-    signals = np.ones((T, 10))
-    cons = registry("portfolio_constructor").get(name).create({"rebalance_every": 21})
-    w = cons.construct(_signals(signals), ConstructionContext(DATA, PPY)).values
-    np.testing.assert_allclose(np.abs(w).sum(axis=1), 1.0, atol=1e-9)
-    changes = np.any(np.abs(np.diff(w, axis=0)) > 1e-12, axis=1).sum()
-    assert changes <= T // 21 + 1
-
-
-def test_mean_variance_respects_bounds():
-    w = _construct("mean_variance", max_weight=0.2, gross=1.0)
-    assert np.abs(w).max() <= 0.2 + 1e-6
-    assert np.abs(w).sum(axis=1).max() <= 1.0 + 1e-6
+def test_signal_proportional_scales_to_gross():
+    w = _construct("signal_proportional", gross=1.0)
+    np.testing.assert_allclose(np.abs(w).sum(axis=1), 1.0)

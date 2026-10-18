@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from backbone.api.app import create_app
-from backbone.core.config import Settings
-from backbone.services.container import Services
-from backbone.services.jobs import JobManager
+from hft_forecast.api.app import create_app
+from hft_forecast.core.config import Settings
+from hft_forecast.services.container import Services
+from hft_forecast.services.jobs import JobManager
 
 API = "/api/v1"
 CONFIG = {
@@ -22,8 +22,12 @@ CONFIG = {
         "start": "2014-01-01",
         "end": "2020-12-31",
     },
-    "strategy": {"name": "sma_crossover", "params": {"fast": 10, "slow": 50}},
+    "strategy": {"name": "buy_and_hold"},
+    # the research tools sweep plugin parameters; buy_and_hold has none, so the swept
+    # plugin is the vol-target overlay.
+    "overlays": [{"name": "vol_target", "params": {"target_vol": 0.1, "window": 63}}],
     "costs": [{"name": "bps_notional", "params": {"bps": 10}}],
+    "execution": {"rebalance": "every_bar"},
     "benchmark": "MKT",
     "experiment": "research-exp",
 }
@@ -55,7 +59,11 @@ def test_sweep_walk_forward_monte_carlo_sensitivity(client):
     sweep = _job(
         client,
         "/research/sweep",
-        {"config": CONFIG, "grid": {"fast": [5, 10, 20], "slow": [50, 100]}},
+        {
+            "config": CONFIG,
+            "target": "overlays.0",
+            "grid": {"target_vol": [0.05, 0.1, 0.2], "window": [63, 126]},
+        },
     )
     assert sweep["summary"]["trials"] == 6
     assert sweep["summary"]["pbo"] is not None
@@ -69,7 +77,8 @@ def test_sweep_walk_forward_monte_carlo_sensitivity(client):
         "/research/sweep",
         {
             "config": CONFIG,
-            "random": {"space": {"fast": {"min": 5, "max": 30, "type": "int"}}, "n": 5},
+            "target": "overlays.0",
+            "random": {"space": {"window": {"min": 20, "max": 120, "type": "int"}}, "n": 5},
             "seed": 1,
         },
     )
@@ -82,7 +91,8 @@ def test_sweep_walk_forward_monte_carlo_sensitivity(client):
         "/research/walk-forward",
         {
             "config": CONFIG,
-            "grid": {"fast": [5, 20], "slow": [50, 100]},
+            "target": "overlays.0",
+            "grid": {"target_vol": [0.05, 0.2], "window": [63, 126]},
             "train_bars": 504,
             "test_bars": 126,
         },

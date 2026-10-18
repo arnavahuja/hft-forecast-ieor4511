@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import polars as pl
 
-from backbone.core import DataSource, Instrument, MarketData, columns as C, register
-from backbone.core.types import DataRequest, DatasetInfo, Frequency
-from backbone.data.normalize import normalize_frame
+from hft_forecast.core import DataSource, Instrument, MarketData, columns as C, register
+from hft_forecast.core.types import DataRequest, DatasetInfo, Frequency
+from hft_forecast.data.normalize import normalize_frame
 
 
 @register("data_source", name="example_data_source", version="0.1.0", tags=["user"])

@@ -6,9 +6,9 @@ import numpy as np
 import polars as pl
 import pytest
 
-from backbone.core import columns as C
-from backbone.core.errors import DataError
-from backbone.core.types import DataRequest, MarketData, TargetFrame, TargetKind
+from hft_forecast.core import columns as C
+from hft_forecast.core.errors import DataError
+from hft_forecast.core.types import DataRequest, MarketData, TargetFrame, TargetKind
 
 
 def _md() -> MarketData:

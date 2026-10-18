@@ -6,9 +6,9 @@ from typing import ClassVar
 
 import numpy as np
 
-from backbone.core import Metric, MetricContext, register
-from backbone.core.interfaces import MetricOutput
-from backbone.core.specs import MetricDescriptor, MetricFormat
+from hft_forecast.core import Metric, MetricContext, register
+from hft_forecast.core.interfaces import MetricOutput
+from hft_forecast.core.specs import MetricDescriptor, MetricFormat
 
 
 @register("metric", name="example_metric", version="0.1.0", tags=["user"])

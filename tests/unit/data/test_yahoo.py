@@ -5,9 +5,9 @@ from datetime import date
 import numpy as np
 import pytest
 
-from backbone.core import columns as C
-from backbone.core.types import Adjustment, DataRequest
-from backbone.data.sources.yahoo import YahooSource
+from hft_forecast.core import columns as C
+from hft_forecast.core.types import Adjustment, DataRequest
+from hft_forecast.data.sources.yahoo import YahooSource
 from tests.conftest import recorded_yahoo
 
 
@@ -56,7 +56,7 @@ def test_total_return_uses_adj_close(yahoo):
 
 
 def test_requires_tickers():
-    from backbone.core.errors import DataError
+    from hft_forecast.core.errors import DataError
 
     with pytest.raises(DataError):
         YahooSource().fetch(

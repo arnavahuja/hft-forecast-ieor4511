@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from backbone.core.calendar import TradingCalendar
+from hft_forecast.core.calendar import TradingCalendar
 
 PERMNOS = (10001, 10002, 10003, 10004, 10005, 10006)
 TICKERS = {10001: "AAA", 10002: "BBB", 10003: "CCC", 10004: "DDD", 10005: "EEE", 10006: "FFF"}

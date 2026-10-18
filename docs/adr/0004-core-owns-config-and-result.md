@@ -16,5 +16,5 @@ both types.
 - Timestamps: polars `Datetime("us","UTC")`; NumPy `datetime64[us]` implicitly UTC.
 
 ## Consequences
-One import path for plugin authors (`backbone.core`), and import-linter can enforce that
+One import path for plugin authors (`hft_forecast.core`), and import-linter can enforce that
 plugins never import `engine`, `services` or `api`.

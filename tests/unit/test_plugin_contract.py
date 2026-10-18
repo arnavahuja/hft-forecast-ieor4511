@@ -7,8 +7,8 @@ import json
 import numpy as np
 import pytest
 
-from backbone.core.errors import ConfigError, DataError
-from backbone.core.interfaces import (
+from hft_forecast.core.errors import ConfigError, DataError
+from hft_forecast.core.interfaces import (
     ChartBuilder,
     ChartInput,
     ConstructionContext,
@@ -23,11 +23,11 @@ from backbone.core.interfaces import (
     Strategy,
     UniverseProvider,
 )
-from backbone.core.registry import REGISTRIES, PluginKind, PluginSpec
-from backbone.core.types import TargetFrame, TargetKind
-from backbone.engine.base import RunOptions
-from backbone.engine.pipeline import Pipeline
-from backbone.engine.vectorized import VectorizedEngine
+from hft_forecast.core.registry import REGISTRIES, PluginKind, PluginSpec
+from hft_forecast.core.types import TargetFrame, TargetKind
+from hft_forecast.engine.base import RunOptions
+from hft_forecast.engine.pipeline import Pipeline
+from hft_forecast.engine.vectorized import VectorizedEngine
 from tests.helpers import PPY, config, synthetic, with_required_fields
 
 ALL_SPECS = [spec for reg in REGISTRIES.values() for spec in reg.specs()]

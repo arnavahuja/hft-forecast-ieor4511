@@ -7,9 +7,9 @@ from typing import ClassVar
 
 import numpy as np
 
-from backbone.analytics import chartkit as K
-from backbone.core import ChartBuilder, ChartInput, register
-from backbone.core.specs import ChartSpec, ChartType, MetricFormat
+from hft_forecast.analytics import chartkit as K
+from hft_forecast.core import ChartBuilder, ChartInput, register
+from hft_forecast.core.specs import ChartSpec, ChartType, MetricFormat
 
 
 @register("chart", name="example_chart", version="0.1.0", tags=["user"])

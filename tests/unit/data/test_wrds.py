@@ -6,10 +6,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from backbone.core import columns as C
-from backbone.core.interfaces import SourceEnvironment
-from backbone.core.types import Adjustment, DataRequest
-from backbone.data.sources.wrds_crsp import UNIVERSE_FIELD, WrdsSource
+from hft_forecast.core import columns as C
+from hft_forecast.core.interfaces import SourceEnvironment
+from hft_forecast.core.types import Adjustment, DataRequest
+from hft_forecast.data.sources.wrds_crsp import UNIVERSE_FIELD, WrdsSource
 from tests.fixtures.fake_wrds import DELISTED, JOINS_LATE, FakeWrds
 
 

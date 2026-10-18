@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from backbone.analytics import stats as S
+from hft_forecast.analytics import stats as S
 from tests.helpers import PPY
 
 RNG = np.random.default_rng(42)

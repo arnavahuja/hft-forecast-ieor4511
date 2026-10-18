@@ -5,7 +5,7 @@ Template: [`templates/example_strategy.py`](../../templates/example_strategy.py)
 1. Scaffold it:
 
    ```bash
-   backbone new strategy my_strategy     # writes user_plugins/my_strategy.py + a test
+   hftf new strategy my_strategy     # writes user_plugins/my_strategy.py + a test
    ```
 
 2. Edit `user_plugins/my_strategy.py`:
@@ -18,14 +18,14 @@ Template: [`templates/example_strategy.py`](../../templates/example_strategy.py)
      limits and hedging belong in overlays.
    - Declare `capabilities`, e.g. `{"engine:vectorized", "engine:event", "freq:daily"}`. The
      Lab uses them to block invalid combinations.
-3. Restart `make run`, or set `BACKBONE_DEV_MODE=true` and the file hot-reloads on save.
+3. Restart `make run`, or set `HFTF_DEV_MODE=true` and the file hot-reloads on save.
 4. Open the Strategy Lab. The strategy is in the list with an auto-generated form. Click
    **Run lookahead check** before trusting results.
 
 ## Rules
 
 - Row `t` of `generate_targets` may use rows `<= t` only. Use the trailing helpers in
-  `backbone.core.numeric` (`rolling_mean`, `rolling_std`, `ewm_mean`, `pct_change`, `shift`).
+  `hft_forecast.core.numeric` (`rolling_mean`, `rolling_std`, `ewm_mean`, `pct_change`, `shift`).
   The engine applies the execution lag, so never shift targets yourself.
 - In `on_bar`, `ctx.history(field, lookback)` ends at the current bar;
   `ctx.value_at(field, i)` raises `LookaheadError` for future bars.
@@ -36,5 +36,5 @@ Template: [`templates/example_strategy.py`](../../templates/example_strategy.py)
 
 ```bash
 pytest user_plugins/tests/test_my_strategy.py
-backbone check-lookahead my_config.yaml
+hftf check-lookahead my_config.yaml
 ```

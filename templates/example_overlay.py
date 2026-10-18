@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 from pydantic import Field
 
-from backbone.core import Overlay, OverlayContext, OverlayParams, TargetFrame, register
+from hft_forecast.core import Overlay, OverlayContext, OverlayParams, TargetFrame, register
 
 
 class ExampleOverlayParams(OverlayParams):

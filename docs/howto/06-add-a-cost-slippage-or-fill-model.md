@@ -3,7 +3,7 @@
 Template: [`templates/example_cost_model.py`](../../templates/example_cost_model.py)
 
 ```bash
-backbone new cost_model my_fees
+hftf new cost_model my_fees
 ```
 
 | Kind | Vectorized engine | Event engine |

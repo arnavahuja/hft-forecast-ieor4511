@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "backbone"
+name = "hft-forecast-ieor4511"
 version = "0.1.0"
-description = "Local, extensible strategy research and backtesting platform."
+description = "Short-horizon price forecasting on TAQ quote data (IEOR 4511 capstone)."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -48,15 +48,15 @@ dev = [
 ]
 
 [project.scripts]
-backbone = "backbone.cli:main"
+hftf = "hft_forecast.cli:main"
 
-[project.entry-points."backbone.plugins"]
+[project.entry-points."hft_forecast.plugins"]
 
 [tool.setuptools.packages.find]
 where = ["backend"]
 
 [tool.setuptools.package-data]
-backbone = ["py.typed", "templates/*.tmpl"]
+hft_forecast = ["py.typed", "templates/*.tmpl"]
 
 [tool.ruff]
 line-length = 100
@@ -72,7 +72,7 @@ ignore = [
     "RUF012",
     "PLC0415",  # lazy imports: heavy optional libs (yfinance, wrds) and registry<->interfaces
     "PLR0917",  # engine/context signatures mirror the domain; keyword use is encouraged
-    "N812",     # `from backbone.core import columns as C` is the project-wide convention
+    "N812",     # `from hft_forecast.core import columns as C` is the project-wide convention
     "UP046",    # explicit Generic[T] kept for readability of the registry
     "UP047",
 ]
@@ -88,7 +88,7 @@ convention = "google"
 python_version = "3.12"
 strict = true
 mypy_path = "backend"
-packages = ["backbone"]
+packages = ["hft_forecast"]
 plugins = ["pydantic.mypy"]
 # NumPy's stubs type most reductions (sum, mean, ...) as returning Any, which would force a
 # cast on nearly every numerical return. We keep every other --strict check.
@@ -108,22 +108,22 @@ markers = [
 filterwarnings = ["ignore::DeprecationWarning:yfinance.*"]
 
 [tool.coverage.run]
-source = ["backbone"]
-omit = ["backend/backbone/data/sources/wrds_*.py"]
+source = ["hft_forecast"]
+omit = ["backend/hft_forecast/data/sources/wrds_*.py"]
 
 [tool.importlinter]
-root_package = "backbone"
+root_package = "hft_forecast"
 
 [[tool.importlinter.contracts]]
 name = "Layered architecture"
 type = "layers"
 layers = [
-    "backbone.api",
-    "backbone.services",
-    "backbone.analytics",
-    "backbone.engine",
-    "backbone.data",
-    "backbone.core",
+    "hft_forecast.api",
+    "hft_forecast.services",
+    "hft_forecast.analytics",
+    "hft_forecast.engine",
+    "hft_forecast.data",
+    "hft_forecast.core",
 ]
 ignore_imports = [
     # plugin packages live inside layers but may only use core; checked by the next contract
@@ -132,31 +132,31 @@ ignore_imports = [
 [[tool.importlinter.contracts]]
 name = "Core depends on nothing"
 type = "forbidden"
-source_modules = ["backbone.core"]
+source_modules = ["hft_forecast.core"]
 forbidden_modules = [
-    "backbone.data", "backbone.engine", "backbone.analytics", "backbone.portfolio",
-    "backbone.strategies", "backbone.services", "backbone.api",
+    "hft_forecast.data", "hft_forecast.engine", "hft_forecast.analytics", "hft_forecast.portfolio",
+    "hft_forecast.strategies", "hft_forecast.services", "hft_forecast.api",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Plugins depend only on core"
 type = "forbidden"
 source_modules = [
-    "backbone.strategies",
-    "backbone.portfolio",
-    "backbone.data.sources",
-    "backbone.engine.costs",
-    "backbone.engine.fills",
-    "backbone.analytics.metrics",
-    "backbone.analytics.charts",
+    "hft_forecast.strategies",
+    "hft_forecast.portfolio",
+    "hft_forecast.data.sources",
+    "hft_forecast.engine.costs",
+    "hft_forecast.engine.fills",
+    "hft_forecast.analytics.metrics",
+    "hft_forecast.analytics.charts",
 ]
-forbidden_modules = ["backbone.api", "backbone.services"]
+forbidden_modules = ["hft_forecast.api", "hft_forecast.services"]
 
 [[tool.importlinter.contracts]]
 name = "Strategies are independent of other plugins"
 type = "forbidden"
-source_modules = ["backbone.strategies"]
+source_modules = ["hft_forecast.strategies"]
 forbidden_modules = [
-    "backbone.portfolio", "backbone.data.sources", "backbone.engine",
-    "backbone.analytics",
+    "hft_forecast.portfolio", "hft_forecast.data.sources", "hft_forecast.engine",
+    "hft_forecast.analytics",
 ]

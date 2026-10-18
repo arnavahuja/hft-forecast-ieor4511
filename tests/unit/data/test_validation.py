@@ -4,10 +4,10 @@ from datetime import UTC, datetime
 
 import polars as pl
 
-from backbone.core import columns as C
-from backbone.core.calendar import TradingCalendar
-from backbone.core.types import MarketData
-from backbone.data.validation import validate
+from hft_forecast.core import columns as C
+from hft_forecast.core.calendar import TradingCalendar
+from hft_forecast.core.types import MarketData
+from hft_forecast.data.validation import validate
 
 
 def test_gap_and_jump_detection():

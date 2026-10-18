@@ -7,7 +7,7 @@ from typing import ClassVar
 import numpy as np
 from pydantic import Field
 
-from backbone.core import (
+from hft_forecast.core import (
     Context,
     MarketData,
     Strategy,
@@ -16,7 +16,7 @@ from backbone.core import (
     columns as C,
     register,
 )
-from backbone.core.numeric import rolling_mean
+from hft_forecast.core.numeric import rolling_mean
 
 
 class ExampleStrategyParams(StrategyParams):

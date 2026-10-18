@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from pydantic import Field
 
-from backbone.core import Strategy, StrategyParams, register
-from backbone.core.discovery import discover_user_dir, load_user_file
-from backbone.core.errors import DuplicatePluginError, PluginError, PluginNotFoundError
-from backbone.core.registry import PluginKind, registry
+from hft_forecast.core import Strategy, StrategyParams, register
+from hft_forecast.core.discovery import discover_user_dir, load_user_file
+from hft_forecast.core.errors import DuplicatePluginError, PluginError, PluginNotFoundError
+from hft_forecast.core.registry import PluginKind, registry
 
 
 @pytest.fixture
@@ -71,7 +71,7 @@ def test_missing_plugin_error_lists_available():
 
 DUMMY = textwrap.dedent(
     '''
-    from backbone.core import Strategy, StrategyParams, register
+    from hft_forecast.core import Strategy, StrategyParams, register
 
     @register("strategy", name="_user_dummy")
     class UserDummy(Strategy):

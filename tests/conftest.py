@@ -5,8 +5,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from backbone.data.service import DataPaths, DataService
-from backbone.services.plugins import PluginService
+from hft_forecast.data.service import DataPaths, DataService
+from hft_forecast.services.plugins import PluginService
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

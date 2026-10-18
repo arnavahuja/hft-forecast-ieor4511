@@ -3,7 +3,7 @@
 Template: [`templates/example_chart.py`](../../templates/example_chart.py)
 
 ```bash
-backbone new chart my_chart
+hftf new chart my_chart
 ```
 
 A chart builder returns a library-neutral `ChartSpec`:

@@ -15,4 +15,4 @@ crossover, bps costs):
 The vectorized engine is dominated by round-trip trade extraction for large universes (one
 pass per instrument). The event engine is a Python loop over bars by design. Use the
 vectorized engine for sweeps and cross-sectional work and the event engine for
-path-dependent logic. Research sweeps run trials in threads (`BACKBONE_MAX_WORKERS`).
+path-dependent logic. Research sweeps run trials in threads (`HFTF_MAX_WORKERS`).

@@ -1,0 +1,22 @@
+# Offline example: buy and hold on synthetic data (no network needed).
+name: Buy and hold (synthetic)
+data:
+  source: synthetic
+  dataset: gbm
+  instruments: [AAA, BBB, CCC]
+  start: 2015-01-01
+  end: 2022-12-31
+strategy:
+  name: buy_and_hold
+costs:
+  - name: bps_notional
+    params: {bps: 2}
+slippage:
+  name: half_spread
+  params: {spread_bps: 4}
+benchmark: SYN_MKT
+execution:
+  engine: vectorized
+  lag_bars: 1
+  price: close
+experiment: examples

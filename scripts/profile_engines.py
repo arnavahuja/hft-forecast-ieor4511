@@ -5,17 +5,17 @@ from __future__ import annotations
 import time
 from datetime import date
 
-from backbone.core.calendar import PERIODS_PER_YEAR_KEY
-from backbone.core.registry import registry
-from backbone.core.run_config import BacktestConfig
-from backbone.core.types import DataRequest
-from backbone.data.sources.synthetic import SyntheticSource
-from backbone.engine.base import RunOptions
-from backbone.engine.event.engine import EventEngine
-from backbone.engine.pipeline import Pipeline
-from backbone.engine.vectorized import VectorizedEngine
-from backbone.analytics.service import AnalyticsService
-from backbone.services.plugins import PluginService
+from hft_forecast.core.calendar import PERIODS_PER_YEAR_KEY
+from hft_forecast.core.registry import registry
+from hft_forecast.core.run_config import BacktestConfig
+from hft_forecast.core.types import DataRequest
+from hft_forecast.data.sources.synthetic import SyntheticSource
+from hft_forecast.engine.base import RunOptions
+from hft_forecast.engine.event.engine import EventEngine
+from hft_forecast.engine.pipeline import Pipeline
+from hft_forecast.engine.vectorized import VectorizedEngine
+from hft_forecast.analytics.service import AnalyticsService
+from hft_forecast.services.plugins import PluginService
 
 PPY = 252.0
 

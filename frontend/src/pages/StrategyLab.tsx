@@ -384,37 +384,6 @@ export function StrategyLabPage() {
                 </Select>
               </div>
             </div>
-            <div className="mt-3">
-              <Label htmlFor="extra">
-                Extra datasets (as-of joined, e.g. wrds:compustat_annual)
-              </Label>
-              <Input
-                id="extra"
-                value={draft.extraDatasets}
-                placeholder="source:dataset, …"
-                onChange={(e) => set({ extraDatasets: e.target.value })}
-              />
-            </div>
-            <div className="mt-3">
-              <Label htmlFor="splices">
-                Splices (extend an instrument back with a proxy, e.g. IEF=wrds:crsp_treasury:B10RET)
-              </Label>
-              <Input
-                id="splices"
-                value={draft.splices}
-                placeholder="TARGET=source:dataset:SERIES, …"
-                onChange={(e) => set({ splices: e.target.value })}
-              />
-            </div>
-            <div className="mt-3">
-              <Label htmlFor="chain">Option chains (optional, e.g. wrds:optionm_chain)</Label>
-              <Input
-                id="chain"
-                value={draft.optionsChain}
-                placeholder="blank = model-priced options"
-                onChange={(e) => set({ optionsChain: e.target.value })}
-              />
-            </div>
             <div className="mt-4">
               <PluginPicker
                 id="universe"
@@ -594,7 +563,7 @@ export function StrategyLabPage() {
           </Step>
 
           <Step n={6} title="Benchmark, capital and research split">
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-3">
               <div>
                 <Label htmlFor="bench">Benchmark</Label>
                 <Input
@@ -605,20 +574,11 @@ export function StrategyLabPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="factors">Factor returns</Label>
-                <Input
-                  id="factors"
-                  value={draft.factors}
-                  placeholder="wrds:ff_factors"
-                  onChange={(e) => set({ factors: e.target.value })}
-                />
-              </div>
-              <div>
                 <Label htmlFor="riskfree">Risk-free (cash earns it, Sharpe uses excess)</Label>
                 <Input
                   id="riskfree"
                   value={draft.riskFree}
-                  placeholder="wrds:ff_factors:rf"
+                  placeholder="source:dataset:field"
                   onChange={(e) => set({ riskFree: e.target.value })}
                 />
               </div>

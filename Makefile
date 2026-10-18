@@ -1,4 +1,4 @@
-# Backbone developer commands. Run inside the `backbone` conda environment
+# hft-forecast developer commands. Run inside the project conda environment
 # (`conda activate backbone`), or override PYTHON=/path/to/python.
 PYTHON ?= $(if $(CONDA_PREFIX),$(CONDA_PREFIX)/bin/python,python)
 PNPM ?= pnpm
@@ -26,7 +26,7 @@ test-live:  ## Opt-in tests that hit Yahoo / WRDS
 	$(PYTHON) -m pytest -m live
 
 cov:
-	$(PYTHON) -m pytest -m "not live" --cov=backbone --cov-report=term-missing
+	$(PYTHON) -m pytest -m "not live" --cov=hft_forecast --cov-report=term-missing
 
 lint:
 	$(PYTHON) -m ruff check backend tests user_plugins
@@ -52,7 +52,7 @@ frontend-build:
 	cd $(FRONTEND) && $(PNPM) run build
 
 openapi:  ## Regenerate the OpenAPI schema and the TypeScript client types
-	$(PYTHON) -m backbone.cli openapi --out $(FRONTEND)/openapi.json
+	$(PYTHON) -m hft_forecast.cli openapi --out $(FRONTEND)/openapi.json
 	cd $(FRONTEND) && $(PNPM) run gen:api && $(PNPM) exec prettier --write src/api/schema.d.ts
 
 e2e:  ## Playwright smoke tests (starts API and front end)
@@ -66,7 +66,7 @@ run:  ## Start API (127.0.0.1:8000) and front end (127.0.0.1:5173) together
 	PYTHON=$(PYTHON) PNPM=$(PNPM) ./scripts/run.sh
 
 api:
-	$(PYTHON) -m backbone.cli serve
+	$(PYTHON) -m hft_forecast.cli serve
 
 web:
 	cd $(FRONTEND) && $(PNPM) run dev

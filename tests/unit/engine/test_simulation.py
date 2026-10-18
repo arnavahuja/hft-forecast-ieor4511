@@ -5,7 +5,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
-from backbone.engine.simulation import last_true_before, simulate_segments
+from hft_forecast.engine.simulation import last_true_before, simulate_segments
 
 
 def test_last_true_before():

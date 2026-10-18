@@ -5,13 +5,13 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from backbone.core import columns as C
-from backbone.core.registry import registry
-from backbone.core.run_config import RebalanceRule
-from backbone.core.types import MONEY_ATOL, MONEY_RTOL
-from backbone.engine.base import RunOptions
-from backbone.engine.pipeline import Pipeline
-from backbone.engine.vectorized import VectorizedEngine
+from hft_forecast.core import columns as C
+from hft_forecast.core.registry import registry
+from hft_forecast.core.run_config import RebalanceRule
+from hft_forecast.core.types import MONEY_ATOL, MONEY_RTOL
+from hft_forecast.engine.base import RunOptions
+from hft_forecast.engine.pipeline import Pipeline
+from hft_forecast.engine.vectorized import VectorizedEngine
 from tests.helpers import PPY, config, make_market
 
 OPTS = RunOptions(periods_per_year=PPY)
@@ -89,7 +89,7 @@ def test_trade_pnl_sums_to_gross_pnl():
     rng = np.random.default_rng(3)
     closes = list(100 * np.cumprod(1 + rng.normal(0, 0.02, 120)))
     data = make_market({"A": closes, "B": closes[::-1]})
-    strat = _strategy("sma_crossover", fast=3, slow=8)
-    res = VectorizedEngine().run(config(), data, strat, Pipeline(), OPTS)
+    cfg = config(rebalance=RebalanceRule.EVERY_BAR)
+    res = VectorizedEngine().run(cfg, data, _strategy(), Pipeline(), OPTS)
     gross_pnl = res.equity[-1] - res.initial_capital
     assert res.trades["pnl"].sum() == pytest.approx(gross_pnl, rel=1e-9)

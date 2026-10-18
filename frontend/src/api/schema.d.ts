@@ -1137,13 +1137,8 @@ export interface components {
       /** Benchmark */
       benchmark?: string | null
       /**
-       * Factors
-       * @description 'source:dataset' of factor returns for attribution
-       */
-      factors?: string | null
-      /**
        * Risk Free
-       * @description 'source:dataset[:field]' of per-period risk-free returns (e.g. 'wrds:ff_factors:rf'): cash earns it and Sharpe-type metrics use excess returns
+       * @description 'source:dataset[:field]' of per-period risk-free returns: cash earns it and Sharpe-type metrics use excess returns
        */
       risk_free?: string | null
       /**
@@ -1190,13 +1185,8 @@ export interface components {
       /** Benchmark */
       benchmark?: string | null
       /**
-       * Factors
-       * @description 'source:dataset' of factor returns for attribution
-       */
-      factors?: string | null
-      /**
        * Risk Free
-       * @description 'source:dataset[:field]' of per-period risk-free returns (e.g. 'wrds:ff_factors:rf'): cash earns it and Sharpe-type metrics use excess returns
+       * @description 'source:dataset[:field]' of per-period risk-free returns: cash earns it and Sharpe-type metrics use excess returns
        */
       risk_free?: string | null
       /**
@@ -1544,21 +1534,6 @@ export interface components {
       fields?: string[]
       /** Options */
       options?: Record<string, unknown>
-      /**
-       * Options Chain
-       * @description 'source:dataset' of option chains for option overlays/strategies
-       */
-      options_chain?: string | null
-      /**
-       * Extra Datasets
-       * @description 'source:dataset' entries (e.g. fundamentals) as-of joined onto the prices
-       */
-      extra_datasets?: string[]
-      /**
-       * Splices
-       * @description 'TARGET=source:dataset:SERIES' entries: before TARGET has prices, its returns come from SERIES (e.g. 'IEF=wrds:crsp_treasury:B10RET')
-       */
-      splices?: string[]
     }
     /**
      * DatasetPreviewOut

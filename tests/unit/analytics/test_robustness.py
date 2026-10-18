@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from backbone.analytics.robustness.core import (
+from hft_forecast.analytics.robustness.core import (
     bootstrap_paths,
     breakeven,
     expand_grid,

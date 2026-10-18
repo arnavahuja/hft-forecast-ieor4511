@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 from pydantic import Field
 
-from backbone.core import (
+from hft_forecast.core import (
     ConstructionContext,
     ConstructorParams,
     PortfolioConstructor,
@@ -13,7 +13,7 @@ from backbone.core import (
     TargetKind,
     register,
 )
-from backbone.core.numeric import normalize_gross
+from hft_forecast.core.numeric import normalize_gross
 
 
 class ExamplePortfolioConstructorParams(ConstructorParams):

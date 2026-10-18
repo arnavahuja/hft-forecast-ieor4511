@@ -1,0 +1,16 @@
+# Buy and hold SPY and TLT from Yahoo (needs network on first run; cached afterwards).
+name: Buy and hold SPY/TLT
+data:
+  source: yahoo
+  dataset: daily
+  instruments: [SPY, TLT]
+  start: 2010-01-01
+  end: 2024-12-31
+strategy:
+  name: buy_and_hold
+costs:
+  - name: per_share
+slippage:
+  name: half_spread
+benchmark: SPY
+experiment: examples

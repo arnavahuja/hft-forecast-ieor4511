@@ -5,10 +5,10 @@ from datetime import date
 import polars as pl
 import pytest
 
-from backbone.core import columns as C
-from backbone.core.types import DataRequest, Frequency
-from backbone.data.importer import guess_mapping, preview
-from backbone.data.sources.synthetic import SyntheticSource
+from hft_forecast.core import columns as C
+from hft_forecast.core.types import DataRequest, Frequency
+from hft_forecast.data.importer import guess_mapping, preview
+from hft_forecast.data.sources.synthetic import SyntheticSource
 
 
 def _req(start=date(2021, 1, 1), end=date(2021, 6, 30)) -> DataRequest:

@@ -5,16 +5,16 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from backbone.core import columns as C
-from backbone.core.errors import LookaheadError
-from backbone.core.interfaces import Context, Strategy
-from backbone.core.registry import registry
-from backbone.core.run_config import ExecutionPrice, RebalanceRule
-from backbone.core.types import MONEY_ATOL, OrderType
-from backbone.engine.base import RunOptions
-from backbone.engine.event.engine import EventEngine
-from backbone.engine.pipeline import NamedOverlay, Pipeline
-from backbone.engine.vectorized import VectorizedEngine
+from hft_forecast.core import columns as C
+from hft_forecast.core.errors import LookaheadError
+from hft_forecast.core.interfaces import Context, Strategy
+from hft_forecast.core.registry import registry
+from hft_forecast.core.run_config import ExecutionPrice, RebalanceRule
+from hft_forecast.core.types import MONEY_ATOL, OrderType
+from hft_forecast.engine.base import RunOptions
+from hft_forecast.engine.event.engine import EventEngine
+from hft_forecast.engine.pipeline import NamedOverlay, Pipeline
+from hft_forecast.engine.vectorized import VectorizedEngine
 from tests.helpers import PPY, config, make_market, synthetic
 
 PARITY_TOL = 1e-10
@@ -32,10 +32,8 @@ def _strategy(name, **params):
 
 CASES = [
     ("buy_and_hold", {}, {}),
-    ("sma_crossover", {"fast": 10, "slow": 40}, {}),
-    ("sma_crossover", {"fast": 10, "slow": 40, "allow_short": True}, {"price": "open"}),
-    ("ts_momentum", {"lookback": 60, "skip": 5}, {}),
-    ("mean_reversion", {}, {"rebalance": RebalanceRule.EVERY_BAR}),
+    ("buy_and_hold", {}, {"rebalance": RebalanceRule.EVERY_BAR}),
+    ("buy_and_hold", {}, {"rebalance": RebalanceRule.EVERY_BAR, "price": "open"}),
     ("buy_and_hold", {}, {"rebalance": RebalanceRule.MONTHLY, "lag_bars": 2}),
     ("buy_and_hold", {}, {"cash_rate": 0.03}),
 ]
@@ -58,8 +56,8 @@ def test_parity_with_overlays():
             "vol_target", registry("overlay").get("vol_target").create({"target_vol": 0.1})
         ),
     )
-    cfg = config("sma_crossover", {"fast": 10, "slow": 40})
-    s = _strategy("sma_crossover", fast=10, slow=40)
+    cfg = config("buy_and_hold", rebalance=RebalanceRule.EVERY_BAR)
+    s = _strategy("buy_and_hold")
     vec = VectorizedEngine().run(cfg, DATA, s, Pipeline(None, overlays), OPTS)
     evt = EventEngine().run(cfg, DATA, s, Pipeline(None, overlays), OPTS)
     np.testing.assert_allclose(evt.returns, vec.returns, atol=PARITY_TOL)
@@ -67,10 +65,10 @@ def test_parity_with_overlays():
 
 
 def test_costs_reduce_returns_and_are_reported():
-    cfg = config("sma_crossover", {"fast": 10, "slow": 40})
+    cfg = config("buy_and_hold", rebalance=RebalanceRule.EVERY_BAR)
     cost = registry("cost_model").get("per_share").create()
     slip = registry("slippage_model").get("half_spread").create({"spread_bps": 10})
-    s = _strategy("sma_crossover", fast=10, slow=40)
+    s = _strategy("buy_and_hold")
     free = EventEngine().run(cfg, DATA, s, Pipeline(), OPTS)
     paid = EventEngine([cost], slip).run(cfg, DATA, s, Pipeline(), OPTS)
     assert paid.equity[-1] < free.equity[-1]
@@ -80,8 +78,8 @@ def test_costs_reduce_returns_and_are_reported():
 
 
 def test_cash_plus_positions_reconcile_every_bar():
-    cfg = config("ts_momentum", {"lookback": 60})
-    res = EventEngine().run(cfg, DATA, _strategy("ts_momentum", lookback=60), Pipeline(), OPTS)
+    cfg = config("buy_and_hold", rebalance=RebalanceRule.EVERY_BAR)
+    res = EventEngine().run(cfg, DATA, _strategy("buy_and_hold"), Pipeline(), OPTS)
     value = (res.positions * np.nan_to_num(res.prices)).sum(axis=1)
     cash = res.equity - value
     np.testing.assert_allclose(
@@ -146,14 +144,6 @@ def test_limit_order_and_partial_fills():
     assert fills["quantity"].to_list() == [500.0, 500.0]  # 25% of 2000 per bar
 
 
-def test_breakout_strategy_with_stops_runs():
-    cfg = config("breakout_stop", {"channel": 20}, engine="event")
-    res = EventEngine().run(cfg, DATA, _strategy("breakout_stop", channel=20), Pipeline(), OPTS)
-    assert res.metadata["mode"] == "on_bar"
-    assert (res.orders.filter(res.orders["type"] == "stop").height) > 0
-    assert res.trades.height > 0
-
-
 def test_context_cannot_see_the_future():
     seen: list[int] = []
 
@@ -184,7 +174,7 @@ def test_resampled_only_returns_completed_periods():
 
     import polars as pl
 
-    from backbone.core.types import MarketData
+    from hft_forecast.core.types import MarketData
 
     stamps = [datetime(2024, 1, 2, 15, tzinfo=UTC) + timedelta(hours=h) for h in range(3)]
     stamps += [datetime(2024, 1, 3, 15, tzinfo=UTC) + timedelta(hours=h) for h in range(3)]

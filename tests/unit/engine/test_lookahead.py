@@ -5,11 +5,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from backbone.core import columns as C
-from backbone.core.interfaces import Strategy
-from backbone.core.registry import REGISTRIES, PluginKind
-from backbone.core.types import MarketData, TargetFrame
-from backbone.engine.lookahead import check_lookahead
+from hft_forecast.core import columns as C
+from hft_forecast.core.interfaces import Strategy
+from hft_forecast.core.registry import REGISTRIES, PluginKind
+from hft_forecast.core.types import MarketData, TargetFrame
+from hft_forecast.engine.lookahead import check_lookahead
 from tests.helpers import synthetic, with_required_fields
 
 DATA = synthetic(instruments=("AAA", "BBB", "CCC", "DDD", "EEE", "FFF"))

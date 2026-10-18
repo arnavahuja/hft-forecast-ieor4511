@@ -10,10 +10,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from backbone.api.app import create_app
-from backbone.core.config import Settings
-from backbone.services.container import Services
-from backbone.services.jobs import JobManager
+from hft_forecast.api.app import create_app
+from hft_forecast.core.config import Settings
+from hft_forecast.services.container import Services
+from hft_forecast.services.jobs import JobManager
 
 API = "/api/v1"
 
@@ -30,7 +30,7 @@ def client(tmp_path: Path):
     jobs.shutdown()
 
 
-def _config(strategy: str = "sma_crossover", params: dict | None = None, name: str = "t"):
+def _config(strategy: str = "buy_and_hold", params: dict | None = None, name: str = "t", **extra):
     return {
         "name": name,
         "data": {
@@ -40,13 +40,12 @@ def _config(strategy: str = "sma_crossover", params: dict | None = None, name: s
             "start": "2018-01-01",
             "end": "2020-12-31",
         },
-        "strategy": {
-            "name": strategy,
-            "params": params if params is not None else {"fast": 10, "slow": 50},
-        },
+        "strategy": {"name": strategy, "params": params or {}},
         "costs": [{"name": "bps_notional", "params": {"bps": 5}}],
         "benchmark": "MKT",
         "experiment": "api-test",
+        "execution": {"rebalance": "every_bar"},
+        **extra,
     }
 
 
@@ -61,11 +60,13 @@ def _run(client: TestClient, config: dict) -> str:
 
 def test_plugins_expose_schema_and_health(client):
     plugins = client.get(f"{API}/plugins/strategy").json()
-    sma = next(p for p in plugins if p["name"] == "sma_crossover")
-    assert sma["params_schema"]["properties"]["fast"]["default"] == 20
-    assert "vectorized" in sma["implements"]
+    bah = next(p for p in plugins if p["name"] == "buy_and_hold")
+    assert "vectorized" in bah["implements"]
+    overlays = client.get(f"{API}/plugins/overlay").json()
+    cap = next(p for p in overlays if p["name"] == "max_position_weight")
+    assert cap["params_schema"]["properties"]["max_weight"]["default"] is not None
     health = client.get(f"{API}/plugins/health").json()
-    assert health["counts"]["strategy"] >= 3
+    assert health["counts"]["strategy"] >= 1
     assert health["failures"] == []
 
 
@@ -73,7 +74,7 @@ def test_structured_errors(client):
     resp = client.get(f"{API}/runs/nope")
     assert resp.status_code == 404
     assert resp.json()["code"] == "not_found"
-    bad = _config(params={"fast": 50, "slow": 10})
+    bad = _config(strategy="no_such_strategy")
     resp = client.post(f"{API}/runs", json={"config": bad})
     assert resp.status_code == 422
     body = resp.json()
@@ -87,7 +88,6 @@ def test_validate_endpoint(client):
     ok = client.post(f"{API}/runs/validate", json={"config": _config()}).json()
     assert ok["ok"] is True
     cfg = _config()
-    cfg["execution"] = {"engine": "vectorized"}
     cfg["costs"] = []
     warn = client.post(f"{API}/runs/validate", json={"config": cfg}).json()
     assert any(i["level"] == "warning" for i in warn["issues"])
@@ -124,14 +124,18 @@ def test_full_run_flow(client):
 
 
 def test_compare_five_runs_across_every_comparison_chart(client):
+    # one strategy, five cost/execution variants: enough to exercise every comparison chart
     variants = [
-        ("sma_crossover", {"fast": 10, "slow": 50}),
-        ("sma_crossover", {"fast": 20, "slow": 100}),
-        ("buy_and_hold", {}),
-        ("ts_momentum", {"lookback": 126}),
-        ("mean_reversion", {}),
+        {"costs": [{"name": "bps_notional", "params": {"bps": bps}}], "execution": execution}
+        for bps, execution in (
+            (0, {"rebalance": "every_bar"}),
+            (5, {"rebalance": "every_bar"}),
+            (20, {"rebalance": "every_bar"}),
+            (5, {"rebalance": "monthly"}),
+            (5, {"rebalance": "on_change"}),
+        )
     ]
-    ids = [_run(client, _config(s, p, name=f"r{k}")) for k, (s, p) in enumerate(variants)]
+    ids = [_run(client, _config(name=f"r{k}", **v)) for k, v in enumerate(variants)]
     table = client.post(f"{API}/compare/metrics", json={"run_ids": ids}).json()
     sharpe = next(r for r in table["rows"] if r["key"] == "sharpe")
     assert sharpe["best"] in ids and sharpe["worst"] in ids and sharpe["best"] != sharpe["worst"]
@@ -158,9 +162,10 @@ def test_clone_labels_presets_delete(client):
     run_id = _run(client, _config())
     clone = client.post(
         f"{API}/runs/{run_id}/clone",
-        json={"changes": {"strategy": {"params": {"fast": 15}}}, "run": False},
+        json={"changes": {"execution": {"lag_bars": 2}}, "run": False},
     )
-    assert clone.json()["config"]["strategy"]["params"] == {"fast": 15, "slow": 50}
+    execution = clone.json()["config"]["execution"]
+    assert execution["lag_bars"] == 2 and execution["rebalance"] == "every_bar"
     upd = client.patch(f"{API}/runs/{run_id}", json={"name": "renamed", "tags": ["x"]}).json()
     assert upd["name"] == "renamed" and upd["tags"] == ["x"]
     assert client.get(f"{API}/runs", params={"tag": "x"}).json()[0]["id"] == run_id

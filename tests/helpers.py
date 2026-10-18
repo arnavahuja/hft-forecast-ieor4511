@@ -7,11 +7,11 @@ from typing import Any
 
 import polars as pl
 
-from backbone.core import columns as C
-from backbone.core.calendar import PERIODS_PER_YEAR_KEY
-from backbone.core.run_config import BacktestConfig, DataSpec, ExecutionSpec, PluginRef
-from backbone.core.types import DataRequest, MarketData
-from backbone.data.sources.synthetic import SyntheticSource
+from hft_forecast.core import columns as C
+from hft_forecast.core.calendar import PERIODS_PER_YEAR_KEY
+from hft_forecast.core.run_config import BacktestConfig, DataSpec, ExecutionSpec, PluginRef
+from hft_forecast.core.types import DataRequest, MarketData
+from hft_forecast.data.sources.synthetic import SyntheticSource
 
 PPY = 252.0  # tests use an explicit annualization factor for hand-computed values
 

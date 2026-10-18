@@ -3,7 +3,7 @@
 Template: [`templates/example_metric.py`](../../templates/example_metric.py)
 
 ```bash
-backbone new metric my_metrics
+hftf new metric my_metrics
 ```
 
 A metric plugin is a group of related outputs. Each output has a `MetricDescriptor`:

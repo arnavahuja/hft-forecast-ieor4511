@@ -7,8 +7,8 @@ from typing import ClassVar
 import numpy as np
 from pydantic import Field
 
-from backbone.core import CostContext, CostModel, CostParams, Instrument, register
-from backbone.core.types import FloatArray
+from hft_forecast.core import CostContext, CostModel, CostParams, Instrument, register
+from hft_forecast.core.types import FloatArray
 
 
 class ExampleCostModelParams(CostParams):

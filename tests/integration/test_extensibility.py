@@ -8,13 +8,13 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from backbone.api.app import create_app
-from backbone.core.config import Settings
-from backbone.core.registry import registry
-from backbone.scaffold import scaffold
-from backbone.services.container import Services
-from backbone.services.jobs import JobManager
-from backbone.services.plugins import PluginService
+from hft_forecast.api.app import create_app
+from hft_forecast.core.config import Settings
+from hft_forecast.core.registry import registry
+from hft_forecast.scaffold import scaffold
+from hft_forecast.services.container import Services
+from hft_forecast.services.jobs import JobManager
+from hft_forecast.services.plugins import PluginService
 
 API = "/api/v1"
 

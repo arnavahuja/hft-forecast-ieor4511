@@ -1,0 +1,26 @@
+"""{title}: a user overlay."""
+
+from __future__ import annotations
+
+import numpy as np
+from pydantic import Field
+
+from hft_forecast.core import Overlay, OverlayContext, OverlayParams, TargetFrame, register
+
+
+class {cls}Params(OverlayParams):
+    """Parameters."""
+
+    scale: float = Field(0.5, gt=0, le=5, description="Exposure multiplier")
+
+
+@register("overlay", name="{name}", version="0.1.0", tags=["user"])
+class {cls}(Overlay):
+    """Scale all targets by a constant (replace with your own rule)."""
+
+    Params = {cls}Params
+    params: {cls}Params
+
+    def apply(self, targets: TargetFrame, ctx: OverlayContext) -> TargetFrame:
+        """Row t may only use data up to t; ``ctx.simulate(targets)`` gives zero-cost returns."""
+        return targets.replace(values=np.asarray(targets.values) * self.params.scale)

@@ -34,10 +34,6 @@ export interface LabDraft {
   maxParticipation: number
   latencyBars: number
   benchmark: string
-  factors: string
-  optionsChain: string
-  extraDatasets: string
-  splices: string
   riskFree: string
   initialCapital: number
   seed: number
@@ -74,10 +70,6 @@ export const defaultDraft: LabDraft = {
   maxParticipation: 1,
   latencyBars: 0,
   benchmark: 'SPY',
-  factors: '',
-  optionsChain: '',
-  extraDatasets: '',
-  splices: '',
   riskFree: '',
   initialCapital: 1_000_000,
   seed: 42,
