@@ -1,0 +1,19 @@
+"""Tests for the {name} {kind} (run with pytest)."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from hft_forecast.ml.features.registry import FEATURE_SETS
+from hft_forecast.ml.models.registry import MODELS
+from hft_forecast.services.plugins import PluginService
+
+PLUGIN_DIR = Path(__file__).resolve().parents[1]
+REGISTRY = {{"model": MODELS, "feature_set": FEATURE_SETS}}["{kind}"]
+
+
+def test_{name}_is_registered_and_instantiates():
+    PluginService(user_dir=PLUGIN_DIR).load()
+    spec = REGISTRY.get("{name}")
+    assert spec.params_model.json_schema()["type"] == "object"
+    assert spec.create() is not None

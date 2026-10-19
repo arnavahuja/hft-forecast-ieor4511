@@ -1,0 +1,44 @@
+"""{title}: a user forecasting model."""
+
+from __future__ import annotations
+
+import numpy as np
+from pydantic import Field
+
+from hft_forecast.core.params import PluginParams
+from hft_forecast.core.types import FloatArray, IntArray
+from hft_forecast.ml.base import N_CLASSES, Forecaster
+from hft_forecast.ml.models.registry import register_model
+
+
+class {cls}Params(PluginParams):
+    """Parameters."""
+
+    shrink: float = Field(1.0, gt=0, description="Shrinkage applied to the predicted return")
+
+
+@register_model(name="{name}", version="0.1.0")
+class {cls}(Forecaster):
+    """Arrays in, arrays out. Replace the body; keep the two signatures."""
+
+    Params = {cls}Params
+    params: {cls}Params
+
+    def fit(
+        self,
+        x: FloatArray,
+        y_dir: IntArray,
+        y_ret: FloatArray,
+        sample_weight: FloatArray | None,
+        seed: int,
+    ) -> None:
+        """Fit on one training fold. `y_dir` is in {{-1, 0, 1}}; honour `seed`.
+
+        `self.feature_names` holds the design-matrix column names if you need one by name.
+        """
+        self._mean = float(np.average(y_ret, weights=sample_weight))
+
+    def predict(self, x: FloatArray) -> tuple[FloatArray, FloatArray]:
+        """Return (probabilities (n, 3) in down/flat/up order, expected log return (n,))."""
+        probabilities = np.full((len(x), N_CLASSES), 1.0 / N_CLASSES)
+        return probabilities, np.full(len(x), self._mean * self.params.shrink)

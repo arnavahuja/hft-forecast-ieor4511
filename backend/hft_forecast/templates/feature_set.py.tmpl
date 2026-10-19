@@ -1,0 +1,37 @@
+"""{title}: a user feature set."""
+
+from __future__ import annotations
+
+from typing import ClassVar
+
+import polars as pl
+from pydantic import Field
+
+from hft_forecast.core import columns as C
+from hft_forecast.core.params import PluginParams
+from hft_forecast.ml.base import FeatureSet
+from hft_forecast.ml.features.registry import register_feature_set, session_group
+
+
+class {cls}Params(PluginParams):
+    """Parameters."""
+
+    window: int = Field(20, ge=2, le=5000, description="Rolling window in bars")
+
+
+@register_feature_set(name="{name}", version="0.1.0")
+class {cls}(FeatureSet):
+    """One rolling feature. Every window must be taken over the session."""
+
+    Params = {cls}Params
+    params: {cls}Params
+    lookback_bars: ClassVar[int] = 20
+    requires: ClassVar[tuple[str, ...]] = (C.MID,)
+
+    def compute(self, frame: pl.DataFrame) -> pl.DataFrame:
+        """Add f_* columns. Only .shift(k >= 0) and .rolling_*() over the session."""
+        group = session_group()
+        return frame.with_columns(
+            (pl.col(C.MID) / pl.col(C.MID).rolling_mean(self.params.window).over(group) - 1.0)
+            .alias("f_{name}_gap")
+        )

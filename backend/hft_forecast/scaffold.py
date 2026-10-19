@@ -17,7 +17,11 @@ KINDS: Final = (
     "data_source",
     "cost_model",
     "portfolio_constructor",
+    "model",
+    "feature_set",
 )
+ML_KINDS: Final = ("model", "feature_set")
+"""Kinds registered in the ml registries rather than in ``core.registry``."""
 NAME_PATTERN: Final = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
@@ -45,5 +49,6 @@ def scaffold(kind: str, name: str, directory: Path, overwrite: bool = False) -> 
     directory.mkdir(parents=True, exist_ok=True)
     test.parent.mkdir(parents=True, exist_ok=True)
     plugin.write_text(_template(f"{kind}.py.tmpl").format(name=name, cls=cls, title=title))
-    test.write_text(_template("test_plugin.py.tmpl").format(name=name, kind=kind))
+    template = "test_ml_plugin.py.tmpl" if kind in ML_KINDS else "test_plugin.py.tmpl"
+    test.write_text(_template(template).format(name=name, kind=kind))
     return [plugin, test]

@@ -155,3 +155,18 @@ def test_universes_return_mask(spec):
     except DataError as exc:
         pytest.skip(f"needs data not in the fixture: {exc.message}")
     assert mask.shape == (len(DATA.timestamps), len(DATA.instruments))
+
+
+def test_ml_scaffolds_produce_registered_plugins(tmp_path):
+    """`hftf new model` / `new feature_set` must land in the ml registries."""
+    from hft_forecast.ml.features.registry import FEATURE_SETS
+    from hft_forecast.ml.models.registry import MODELS
+    from hft_forecast.scaffold import scaffold
+    from hft_forecast.services.plugins import PluginService
+
+    for kind in ("model", "feature_set"):
+        scaffold(kind, f"t_scaffold_{kind}", tmp_path)
+    PluginService(user_dir=tmp_path).load()
+    assert "t_scaffold_model" in MODELS
+    assert "t_scaffold_feature_set" in FEATURE_SETS
+    assert MODELS.get("t_scaffold_model").create() is not None

@@ -143,9 +143,20 @@ class Forecaster(ABC):
 
     Params: ClassVar[type[PluginParams]] = PluginParams
     supports_sample_weight: ClassVar[bool] = True
+    implemented: ClassVar[bool] = True
+    """False for the stubs the groups are expected to fill in."""
 
     def __init__(self, params: PluginParams | None = None) -> None:
         self.params = params or self.Params()
+        self.feature_names: tuple[str, ...] = ()
+
+    def set_feature_names(self, names: tuple[str, ...]) -> None:
+        """Tell the model what the design-matrix columns are, before the first ``fit``.
+
+        Keeps ``fit`` purely numerical while still letting a model refer to a feature by
+        name (``last_sign`` needs exactly one column).
+        """
+        self.feature_names = tuple(names)
 
     @abstractmethod
     def fit(

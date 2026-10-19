@@ -299,8 +299,8 @@ def new(
     kind: Annotated[
         str,
         typer.Argument(
-            help="strategy, overlay, metric, chart, data_source, "
-            "cost_model or portfolio_constructor"
+            help="strategy, overlay, metric, chart, data_source, cost_model, "
+            "portfolio_constructor, model or feature_set"
         ),
     ],
     name: Annotated[str, typer.Argument(help="snake_case plugin name")],
