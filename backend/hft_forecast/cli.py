@@ -10,11 +10,13 @@ from typing import Annotated, Any
 import typer
 import yaml
 
+from hft_forecast.core import columns as C
 from hft_forecast.core.config import Settings
 from hft_forecast.core.errors import BackboneError
 from hft_forecast.core.logging import configure_logging
 from hft_forecast.core.run_config import BacktestConfig
 from hft_forecast.core.types import Adjustment, DataRequest, Frequency
+from hft_forecast.ml.train import MANIFEST_FILE
 
 app = typer.Typer(
     help="hft-forecast: short-horizon forecasting research and backtesting.",
@@ -320,6 +322,171 @@ def new(
         "Restart the server (or keep it running with HFTF_DEV_MODE=true for hot "
         "reload); the plugin appears in the UI automatically."
     )
+
+
+ml_app = typer.Typer(help="Forecasting experiments.", no_args_is_help=True)
+app.add_typer(ml_app, name="ml")
+
+
+def _experiment(path: Path, model: str | None, seed: int | None) -> Any:
+    from hft_forecast.core.run_config import PluginRef
+    from hft_forecast.ml.config import ExperimentConfig
+
+    config = ExperimentConfig.load(path)
+    update: dict[str, Any] = {}
+    if model:
+        update["model"] = PluginRef(name=model)
+    if seed is not None:
+        update["seed"] = seed
+    return config.model_copy(update=update) if update else config
+
+
+@ml_app.command("build-dataset")
+def ml_build_dataset(
+    config: Annotated[Path, typer.Argument(help="Experiment config", exists=True)],
+) -> None:
+    """Build (or reuse) the features and labels of an experiment."""
+    from hft_forecast.ml.datasets import build_dataset
+
+    services = _services()
+    cfg = _experiment(config, None, None)
+    directory = build_dataset(cfg, services.data)
+    files = sorted(directory.glob("*.parquet"))
+    typer.echo(f"{directory} ({len(files)} instruments)")
+    for path in files:
+        typer.echo(f"  {path.stem:<10} {path.stat().st_size / 1e6:.1f} MB")
+
+
+@ml_app.command("run")
+def ml_run(
+    config: Annotated[Path, typer.Argument(help="Experiment config", exists=True)],
+    model: Annotated[str | None, typer.Option(help="Override the model")] = None,
+    seed: Annotated[int | None, typer.Option(help="Override the seed")] = None,
+) -> None:
+    """Train, predict out of sample and register the run."""
+    from hft_forecast.ml.evaluate import evaluate
+    from hft_forecast.ml.train import load_predictions, run_experiment
+    from hft_forecast.services.runner import git_commit
+
+    services = _services()
+    cfg = _experiment(config, model, seed)
+    record = services.store.create_ml(
+        name=cfg.name or f"{cfg.experiment} {cfg.model.name}",
+        config=cfg.model_dump(mode="json"),
+        config_hash=cfg.config_hash(),
+        experiment=cfg.experiment,
+        model=cfg.model.name,
+        tags=["ml", cfg.horizon.name, cfg.model.name, *cfg.tags],
+        notes=cfg.notes,
+    )
+    services.store.mark_running(record.id)
+    directory = services.store.run_dir(record.id)
+    try:
+        manifest = run_experiment(cfg, services.data, directory, git_commit())
+    except BackboneError as exc:
+        services.store.mark_failed(record.id, exc.message)
+        typer.echo(f"error: {exc.message}", err=True)
+        raise typer.Exit(1) from exc
+    metrics = evaluate(load_predictions(directory), cfg.seed)
+    pooled = metrics["models"][manifest.model]["pooled"]
+    services.store.complete_ml(
+        record.id,
+        {**metrics, "n_eff": manifest.n_eff},
+        directory / MANIFEST_FILE,
+        headline={
+            "accuracy": pooled["accuracy"],
+            "ic": pooled["ic"],
+            "n_eff": manifest.n_eff,
+        },
+        git_commit=manifest.git_commit,
+        timings=manifest.timings,
+    )
+    typer.echo(f"run {record.id}  {manifest.model}  {len(manifest.folds)} folds")
+    typer.echo(f"  rows {manifest.n_rows:,}   n_eff {manifest.n_eff:,.0f}")
+    for name, values in metrics["models"].items():
+        p = values["pooled"]
+        typer.echo(f"  {name:<22} accuracy {p['accuracy']:.4f}  IC {p['ic']:.4f}")
+    typer.echo(f"results: {directory}")
+
+
+@ml_app.command("econ")
+def ml_econ(
+    run_id: Annotated[str, typer.Argument(help="An ml run id")],
+    cross_sectional: Annotated[bool, typer.Option(help="Run the cross-sectional book")] = False,
+    variant: Annotated[str, typer.Option(help="Cost variant")] = "quoted_spread",
+) -> None:
+    """Run the economic test for a trained model through the backtest engine."""
+    import polars as pl
+
+    from hft_forecast.ml.config import ExperimentConfig
+    from hft_forecast.ml.economic import (
+        RETURN_COLUMN,
+        cross_sectional_config,
+        per_name_configs,
+        pooled_returns,
+    )
+    from hft_forecast.ml.train import PREDICTIONS_FILE
+
+    services = _services()
+    record = services.store.get(run_id)
+    cfg = ExperimentConfig.model_validate(record.config)
+    predictions = services.store.run_dir(run_id) / PREDICTIONS_FILE
+    label = f"{cfg.model.name}@{record.plugin_versions.get(cfg.model.name, '1.0.0')}"
+    configs = (
+        [cross_sectional_config(cfg, predictions, label, variant)]
+        if cross_sectional
+        else per_name_configs(cfg, predictions, label, variant)
+    )
+    books: dict[str, pl.DataFrame] = {}
+    for backtest in configs:
+        done = services.execute_run(backtest)
+        result = services.store.result(done.id)
+        name = backtest.data.instruments[0] if backtest.data.instruments else "book"
+        books[name] = pl.DataFrame({C.TIMESTAMP: result.timestamps, RETURN_COLUMN: result.returns})
+        sharpe = done.headline.get("sharpe")
+        typer.echo(
+            f"  {name:<8} {done.id}  net Sharpe {sharpe if sharpe is None else f'{sharpe:.2f}'}"
+        )
+    pooled = pooled_returns(books)
+    if pooled.height:
+        series = pooled["pooled_return"].to_numpy()
+        typer.echo(f"pooled per-bar mean {series.mean():.3e}  t-stat {_t_stat(series):.2f}")
+
+
+def _t_stat(values: Any) -> float:
+    from hft_forecast.analytics import stats as S
+
+    return float(S.mean_t_stat(values))
+
+
+@ml_app.command("compare")
+def ml_compare(
+    experiment: Annotated[list[str], typer.Option(help="Experiment names")],
+    out: Annotated[Path, typer.Option(help="Output directory")] = Path("report"),
+) -> None:
+    """Write the one comparison table across horizons."""
+    from hft_forecast.ml.report import entry_from_metrics, write_report
+    from hft_forecast.services.run_store import RunStatus
+
+    services = _services()
+    entries = []
+    for name in experiment:
+        runs = [
+            r
+            for r in services.store.list_runs(experiment=name, kind="ml")
+            if r.status is RunStatus.COMPLETED
+        ]
+        if not runs:
+            typer.echo(f"no completed ml runs for '{name}'", err=True)
+            continue
+        metrics = services.store.ml_metrics(runs[0].id)
+        for model in sorted(metrics.get("models", {})):
+            entries.append(entry_from_metrics(name, model, metrics))
+    if not entries:
+        typer.echo("nothing to compare", err=True)
+        raise typer.Exit(1)
+    csv_path, md_path = write_report(entries, out)
+    typer.echo(f"wrote {csv_path} and {md_path}")
 
 
 def main() -> None:

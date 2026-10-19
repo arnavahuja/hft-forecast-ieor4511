@@ -1,0 +1,32 @@
+# Owned by the h30s group. Change this file, your models and your feature sets; the
+# shared core (ml/base.py, labels, cv, train, evaluate, report) needs a cross-group PR.
+experiment: h30s
+name: h30s baseline
+horizon:
+  name: h30s
+  seconds: 30
+  grid: 5s
+data:
+  source: synthetic        # replace with the manifest once the TAQ pull is done
+  dataset: quotes
+  instruments: [AAA, BBB]
+  start: 2024-07-01
+  end: 2024-07-31
+  frequency: 5s
+# manifest: sp50_2024h1_5s   # uncomment to read pulled TAQ bars instead
+features:
+  - name: basic
+labels:
+  dead_zone_bps: 1.0      # roughly the half spread at this horizon; a research choice
+  drop_stale_targets: true
+  warmup_seconds: 60
+  cooldown_seconds: 60
+cv:
+  train_sessions: 40
+  test_sessions: 10
+  anchored: false
+  purge: true
+  min_train_rows: 1000
+model:
+  name: logit_ridge
+seed: 42
