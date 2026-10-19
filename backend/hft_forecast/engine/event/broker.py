@@ -59,6 +59,7 @@ class BarBook:
     close: FloatArray
     volume: FloatArray
     volatility: FloatArray
+    spread: FloatArray
 
     def snapshot(self, j: int) -> BarSnapshot:
         """Bar of instrument ``j``."""
@@ -70,6 +71,7 @@ class BarBook:
             float(self.close[j]),
             float(self.volume[j]),
             float(self.volatility[j]),
+            float(self.spread[j]),
         )
 
 

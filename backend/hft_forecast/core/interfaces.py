@@ -373,6 +373,8 @@ class CostContext:
         multipliers: Contract multipliers ``(N,)``.
         asset_classes: Asset class per instrument ``(N,)``.
         periods_per_year: Annualization factor.
+        extra_panels: Panels ``(T, N)`` for the fields a model declares in ``requires``,
+            e.g. ``spread_bps`` for the quoted-spread model.
     """
 
     timestamps: TimeArray
@@ -386,6 +388,15 @@ class CostContext:
     multipliers: FloatArray
     asset_classes: tuple[str, ...]
     periods_per_year: float
+    extra_panels: dict[str, FloatArray] = field(default_factory=dict)
+
+    def panel(self, field_name: str) -> FloatArray:
+        """A requested extra panel.
+
+        Raises:
+            KeyError: If the model did not declare the field in ``requires``.
+        """
+        return self.extra_panels[field_name]
 
     def traded_units(self) -> FloatArray:
         """Absolute units (shares/contracts) traded at each bar."""
@@ -409,6 +420,8 @@ class BarSnapshot:
     close: float
     volume: float
     volatility: float = float("nan")
+    spread: float = float("nan")
+    """Quoted bid-ask spread in currency at the bar end; NaN when the data has no quotes."""
 
 
 class CostModel(Plugin):
@@ -420,6 +433,8 @@ class CostModel(Plugin):
 
     Params: ClassVar[type[PluginParams]] = CostParams
     category: ClassVar[str] = "commission"
+    requires: ClassVar[tuple[str, ...]] = ()
+    """Extra data fields the vectorized form needs in ``CostContext.extra_panels``."""
 
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Cost at each bar as a fraction of equity ``(T, N)`` (positive = cost)."""
@@ -440,6 +455,8 @@ class SlippageModel(Plugin):
     """Price impact and spread costs."""
 
     Params: ClassVar[type[PluginParams]] = CostParams
+    requires: ClassVar[tuple[str, ...]] = ()
+    """Extra data fields the vectorized form needs in ``CostContext.extra_panels``."""
 
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Slippage at each bar as a fraction of equity ``(T, N)``."""

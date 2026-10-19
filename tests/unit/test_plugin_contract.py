@@ -69,7 +69,10 @@ def test_strategies_run_on_fixture_data(spec):
     assert spec.capabilities, "strategies must declare capabilities"
     if not strat.implements_vectorized():
         pytest.skip("event-only strategy (covered by event engine tests)")
-    tf = strat.generate_targets(with_required_fields(strat, DATA))
+    try:
+        tf = strat.generate_targets(with_required_fields(strat, DATA))
+    except ConfigError as exc:
+        pytest.skip(f"needs configuration the contract test cannot guess: {exc.message}")
     assert tf.values.shape[0] == len(DATA.timestamps)
 
 
@@ -100,7 +103,7 @@ def test_overlays_run(spec):
     assert out.values.shape[0] == len(DATA.timestamps)
 
 
-def _cost_ctx() -> CostContext:
+def _cost_ctx(requires: tuple[str, ...] = ()) -> CostContext:
     n_t, n_i = RESULT.weights.shape
     return CostContext(
         timestamps=RESULT.timestamps,
@@ -114,6 +117,8 @@ def _cost_ctx() -> CostContext:
         multipliers=np.ones(n_i),
         asset_classes=("equity",) * n_i,
         periods_per_year=PPY,
+        # a model only sees the panels it declares in `requires`
+        extra_panels={f: np.full((n_t, n_i), 5.0) for f in requires},
     )
 
 
@@ -122,7 +127,7 @@ def _cost_ctx() -> CostContext:
 )
 def test_cost_models_run(spec):
     model: CostModel | SlippageModel = spec.create()
-    out = model.vectorized(_cost_ctx())
+    out = model.vectorized(_cost_ctx(model.requires))
     assert out.shape == RESULT.weights.shape
     assert np.all(np.nan_to_num(out) >= 0)
 

@@ -7,6 +7,7 @@ from typing import ClassVar, Final
 import numpy as np
 from pydantic import Field
 
+from hft_forecast.core import columns as C
 from hft_forecast.core.interfaces import (
     ENGINE_EVENT,
     ENGINE_VECTORIZED,
@@ -105,3 +106,39 @@ class SqrtImpact(SlippageModel):
         if bar.volume <= 0:
             return 0.0
         return price * self.params.k * vol * float(np.sqrt(abs(quantity) / bar.volume))
+
+
+class QuotedSpreadParams(CostParams):
+    """Spread paid from the data rather than assumed."""
+
+    multiplier: float = Field(
+        1.0, ge=0, le=10, description="Share of the half-spread paid (1.0 = cross at the touch)"
+    )
+    min_bps: float = Field(0.0, ge=0, le=1000, description="Floor in bps, used where no quote")
+
+
+@register("slippage_model", name="quoted_spread", version="1.0.0", tags=["quotes", "intraday"])
+class QuotedSpread(SlippageModel):
+    """Pay half the spread actually quoted at the trade bar.
+
+    This is the cost model the economic test is judged on: a marketable order for a size
+    below displayed depth fills at the touch. There is no queue model, so passive fills are
+    out of scope and the reported numbers are for crossing the spread.
+    """
+
+    Params = QuotedSpreadParams
+    params: QuotedSpreadParams
+    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES
+    requires: ClassVar[tuple[str, ...]] = (C.SPREAD_BPS,)
+
+    def vectorized(self, ctx: CostContext) -> FloatArray:
+        """Half the bar's quoted spread x |traded weight|."""
+        spread_bps = np.nan_to_num(ctx.panel(C.SPREAD_BPS), nan=self.params.min_bps)
+        effective = np.maximum(spread_bps, self.params.min_bps)
+        return np.abs(ctx.trades) * 0.5 * effective * BPS * self.params.multiplier
+
+    def price_adjustment(self, quantity: float, price: float, bar: BarSnapshot) -> float:
+        """Half the bar's spread per unit, falling back to ``min_bps`` without a quote."""
+        floor = price * self.params.min_bps * BPS
+        half = 0.5 * bar.spread if np.isfinite(bar.spread) else floor
+        return max(half, floor) * self.params.multiplier

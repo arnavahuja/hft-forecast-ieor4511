@@ -111,6 +111,7 @@ class EventEngine:
         for f in (C.OPEN, C.HIGH, C.LOW):
             panels.setdefault(f, close)
         panels.setdefault(C.VOLUME, np.full_like(close, np.inf))
+        panels.setdefault(C.SPREAD, np.full_like(close, np.nan))
         return panels
 
     def _adapter_schedule(
@@ -313,6 +314,7 @@ class EventEngine:
             p[C.CLOSE][t],
             p[C.VOLUME][t],
             loop.vol[t],
+            p[C.SPREAD][t],
         )
 
         def equity_at(px: FloatArray) -> float:

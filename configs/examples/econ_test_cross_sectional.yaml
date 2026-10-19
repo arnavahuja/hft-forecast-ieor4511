@@ -1,0 +1,36 @@
+# The secondary economic test: one long/short book across the names on the 1 min grid.
+# Rebalancing 50 names every minute under marketable-order costs is economically absurd;
+# it is here so the report can say so with a number.
+name: econ test cross-sectional h5m
+experiment: h5m
+data:
+  source: synthetic
+  dataset: quotes
+  instruments: [AAA, BBB, CCC]
+  start: 2024-07-01
+  end: 2024-07-03
+  frequency: 1min
+strategy:
+  name: prediction_signal
+  params:
+    predictions_path: data/runs/REPLACE_ME/predictions.parquet
+    model: logit_ridge@1.0.0
+    mode: return          # trade when |y_hat| beats k x the half spread
+    spread_multiple: 1.0
+    hold_bars: 5
+    output_kind: signals  # the constructor turns them into weights
+constructor:
+  name: quantile
+  params:
+    quantile: 0.1
+overlays:
+  - name: gross_cap
+    params:
+      max_gross: 1.0
+execution:
+  engine: vectorized
+  lag_bars: 1
+  rebalance: every_bar
+slippage:
+  name: quoted_spread
+tags: [ml, economic, cross_sectional, h5m]

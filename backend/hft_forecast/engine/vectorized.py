@@ -194,6 +194,28 @@ class VectorizedEngine:
 
     # ------------------------------------------------------------------ costs
 
+    def _extra_panels(self, data: MarketData) -> dict[str, FloatArray]:
+        """Panels for the fields the cost and slippage models declare in ``requires``.
+
+        Raises:
+            EngineError: If the data has no such field.
+        """
+        models: list[CostModel | SlippageModel] = [*self.cost_models]
+        if self.slippage is not None:
+            models.append(self.slippage)
+        out: dict[str, FloatArray] = {}
+        for model in models:
+            for field_name in model.requires:
+                if field_name in out:
+                    continue
+                if field_name not in data.fields:
+                    raise EngineError(
+                        f"Cost model '{type(model).__name__}' needs field '{field_name}', "
+                        "which this dataset does not have"
+                    )
+                out[field_name] = data.panel(field_name)
+        return out
+
     def _costs(self, ctx: CostContext) -> tuple[FloatArray, dict[str, FloatArray]]:
         total = np.zeros_like(ctx.trades)
         by_cat: dict[str, FloatArray] = {}
@@ -309,6 +331,7 @@ class VectorizedEngine:
         net = path.gross
         cost_frac = np.zeros_like(path.trades)
         by_cat: dict[str, FloatArray] = {}
+        extra_panels = self._extra_panels(data)
         for _ in range(COST_PASSES):
             prev_equity = np.concatenate(([capital], (capital * np.cumprod(1.0 + net))[:-1]))
             equity_pre = prev_equity * (1.0 + path.gross)
@@ -324,6 +347,7 @@ class VectorizedEngine:
                 multipliers=multipliers,
                 asset_classes=classes,
                 periods_per_year=ppy,
+                extra_panels=extra_panels,
             )
             cost_frac, by_cat = self._costs(ctx)
             net = (1.0 + path.gross) * (1.0 - cost_frac.sum(axis=1)) - 1.0

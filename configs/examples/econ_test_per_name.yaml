@@ -1,0 +1,29 @@
+# The primary economic test: one instrument, positions from a predictions file.
+# Point predictions_path at a run's predictions.parquet (hftf ml run writes one) and set
+# data.instruments to the single name that run covers.
+name: econ test AAA h30s
+experiment: h30s
+data:
+  source: synthetic
+  dataset: quotes
+  instruments: [AAA]
+  start: 2024-07-01
+  end: 2024-07-03
+  frequency: 5s
+strategy:
+  name: prediction_signal
+  params:
+    predictions_path: data/runs/REPLACE_ME/predictions.parquet
+    model: logit_ridge@1.0.0
+    mode: probability
+    threshold: 0.0
+    hold_bars: 6          # the 30 s horizon on a 5 s grid
+    overlap: average
+execution:
+  engine: vectorized
+  lag_bars: 1             # decide at the close of t, trade at the close of t+1
+  price: close            # the mid, for a quote dataset
+  rebalance: on_change
+slippage:
+  name: quoted_spread     # half the spread actually quoted at the trade bar
+tags: [ml, economic, h30s]
