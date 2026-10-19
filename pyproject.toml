@@ -120,6 +120,7 @@ type = "layers"
 layers = [
     "hft_forecast.api",
     "hft_forecast.services",
+    "hft_forecast.ml",
     "hft_forecast.analytics",
     "hft_forecast.engine",
     "hft_forecast.data",
@@ -136,6 +137,7 @@ source_modules = ["hft_forecast.core"]
 forbidden_modules = [
     "hft_forecast.data", "hft_forecast.engine", "hft_forecast.analytics", "hft_forecast.portfolio",
     "hft_forecast.strategies", "hft_forecast.services", "hft_forecast.api",
+    "hft_forecast.ml",
 ]
 
 [[tool.importlinter.contracts]]
@@ -149,6 +151,8 @@ source_modules = [
     "hft_forecast.engine.fills",
     "hft_forecast.analytics.metrics",
     "hft_forecast.analytics.charts",
+    "hft_forecast.ml.models",
+    "hft_forecast.ml.features",
 ]
 forbidden_modules = ["hft_forecast.api", "hft_forecast.services"]
 
@@ -158,5 +162,26 @@ type = "forbidden"
 source_modules = ["hft_forecast.strategies"]
 forbidden_modules = [
     "hft_forecast.portfolio", "hft_forecast.data.sources", "hft_forecast.engine",
-    "hft_forecast.analytics",
+    "hft_forecast.analytics", "hft_forecast.ml",
+]
+
+[[tool.importlinter.contracts]]
+# A model gets arrays in and arrays out. This is what lets three groups add models in
+# parallel without touching shared training or evaluation code.
+name = "ML plugins depend only on core and ml.base"
+type = "forbidden"
+source_modules = ["hft_forecast.ml.models", "hft_forecast.ml.features"]
+forbidden_modules = [
+    "hft_forecast.engine", "hft_forecast.analytics", "hft_forecast.data",
+    "hft_forecast.ml.train", "hft_forecast.ml.evaluate", "hft_forecast.ml.economic",
+    "hft_forecast.ml.cv", "hft_forecast.ml.labels", "hft_forecast.ml.datasets",
+]
+
+[[tool.importlinter.contracts]]
+name = "Horizon packages are independent"
+type = "independence"
+modules = [
+    "hft_forecast.ml.horizons.h30s",
+    "hft_forecast.ml.horizons.h5m",
+    "hft_forecast.ml.horizons.h30m",
 ]
