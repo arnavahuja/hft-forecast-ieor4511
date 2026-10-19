@@ -69,3 +69,21 @@ def test_windows_never_span_a_session():
     assert np.isnan(out[0]).all() and np.isnan(out[3]).all()  # first bar of each session
     assert np.array_equal(out[1], x[0:2])
     assert np.array_equal(out[4], x[3:5])
+
+
+def test_a_one_minute_grid_still_produces_usable_rows(data_service, experiment):
+    """The coarse-volatility window must not collapse when the grids coincide."""
+    from hft_forecast.core.types import Frequency
+    from hft_forecast.ml.base import H5M
+    from hft_forecast.ml.datasets import null_report
+
+    minute = experiment.model_copy(
+        update={
+            "horizon": H5M,
+            "data": experiment.data.model_copy(update={"frequency": Frequency.MIN1}),
+        }
+    )
+    frame = load_dataset(build_dataset(minute, data_service))
+    nulls = null_report(frame)
+    assert nulls["f_vol_coarse_completed"] < 0.5
+    assert usable_rows(frame).height > 0

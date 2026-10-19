@@ -162,6 +162,9 @@ def _bootstrap(rows: pl.DataFrame, seed: int) -> dict[str, Any]:
 
 
 def _interval(draws: FloatArray) -> list[float]:
+    """95% interval, or NaNs when the statistic is undefined (``zero`` has no IC)."""
+    if not np.isfinite(draws).any():
+        return [float("nan"), float("nan")]
     return [float(np.nanquantile(draws, 0.025)), float(np.nanquantile(draws, 0.975))]
 
 

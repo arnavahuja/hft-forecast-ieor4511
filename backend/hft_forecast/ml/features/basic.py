@@ -19,7 +19,7 @@ from hft_forecast.ml.features.registry import register_feature_set, session_grou
 
 RETURN_LAGS: Final = (1, 5, 10)
 VOL_WINDOWS: Final = (20, 100)
-MINUTE_BARS: Final = 60
+MIN_VOL_BARS: Final = 2
 EPS: Final = 1e-12
 
 
@@ -82,7 +82,9 @@ class Basic(FeatureSet):
         Shifting by one coarse bar's worth of fine bars is what makes it *completed*: at bar
         ``t`` the window ends at the previous coarse boundary, never inside the current one.
         """
-        bars = max(self.params.coarse_seconds // bar_seconds, 1)
+        # at least two bars: a rolling std over one sample is null for every row, which
+        # would make the whole column useless on a grid as coarse as the feature
+        bars = max(self.params.coarse_seconds // bar_seconds, MIN_VOL_BARS)
         return (
             pl.col("_r1").rolling_std(bars).shift(bars).over(group).alias("f_vol_coarse_completed")
         )

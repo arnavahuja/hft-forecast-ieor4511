@@ -10,8 +10,8 @@ data:
   source: synthetic        # replace with the manifest once the TAQ pull is done
   dataset: quotes
   instruments: [AAA, BBB]
-  start: 2024-07-01
-  end: 2024-07-31
+  start: 2024-01-02
+  end: 2024-06-28   # 124 sessions: 40 train + 10 test leaves 8 folds
   frequency: 5s
 # manifest: sp50_2024h1_5s   # uncomment to read pulled TAQ bars instead
 features:

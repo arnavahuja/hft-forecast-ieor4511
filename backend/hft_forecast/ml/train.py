@@ -31,7 +31,13 @@ from hft_forecast.ml.base import (
 )
 from hft_forecast.ml.config import ExperimentConfig
 from hft_forecast.ml.cv import Fold, effective_sample_size, split, uniqueness_weights
-from hft_forecast.ml.datasets import build_dataset, design_matrix, load_dataset, usable_rows
+from hft_forecast.ml.datasets import (
+    build_dataset,
+    design_matrix,
+    load_dataset,
+    null_report,
+    usable_rows,
+)
 from hft_forecast.ml.determinism import environment, seed_everything
 from hft_forecast.ml.labels import label_report
 from hft_forecast.ml.models.registry import MODELS
@@ -105,9 +111,13 @@ def run_experiment(
     (out_dir / ENVIRONMENT_FILE).write_text(json.dumps(environment(config.seed), indent=1))
 
     directory = build_dataset(config, data)
-    frame = usable_rows(load_dataset(directory, config.data.instruments))
+    built_frame = load_dataset(directory, config.data.instruments)
+    frame = usable_rows(built_frame)
     if frame.is_empty():
-        raise ConfigError("No usable rows: every label was dropped")
+        raise ConfigError(
+            "No usable rows: every row had an invalid label or a missing feature",
+            details=null_report(built_frame),
+        )
     built = time.monotonic()
 
     matrix, columns = design_matrix(frame)

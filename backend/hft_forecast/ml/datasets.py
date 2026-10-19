@@ -159,6 +159,25 @@ def usable_rows(frame: pl.DataFrame) -> pl.DataFrame:
     return frame.filter(pl.col(LABEL_VALID) & finite)
 
 
+def null_report(frame: pl.DataFrame) -> dict[str, float]:
+    """Share of rows each feature is missing for, plus the share of invalid labels.
+
+    What you want printed when a dataset turns out to be empty: it names the column that
+    emptied it instead of leaving you to bisect the feature set.
+    """
+    out = {
+        column: _missing_share(frame.get_column(column).is_finite().fill_null(value=False))
+        for column in feature_columns(frame)
+    }
+    out["label_invalid"] = _missing_share(frame.get_column(LABEL_VALID))
+    return out
+
+
+def _missing_share(flags: pl.Series) -> float:
+    """Share of ``False`` in a boolean column."""
+    return 1.0 - float(flags.to_numpy().mean()) if flags.len() else 1.0
+
+
 def windowed(x: FloatArray, lookback: int, session_id: IntArray) -> FloatArray:
     """``(n, lookback, f)`` sequence windows that never span a session boundary.
 
