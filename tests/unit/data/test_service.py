@@ -6,6 +6,7 @@ import polars as pl
 import pytest
 
 from hft_forecast.core import columns as C
+from hft_forecast.core.errors import DataError
 from hft_forecast.core.types import DataRequest, Frequency
 from hft_forecast.data.importer import guess_mapping, preview
 from hft_forecast.data.sources.synthetic import SyntheticSource
@@ -102,3 +103,31 @@ def test_import_wizard_roundtrip(data_service, tmp_path):
     # one-click re-import with the saved mapping
     again = data_service.import_file(path, data_service.saved_mapping(record.id), record.id)
     assert again.id == record.id
+
+
+def test_partitions_split_by_instrument_and_month(data_service):
+    parts = data_service.partitions(_req(date(2021, 1, 15), date(2021, 3, 2)))
+    assert [(p.instruments, p.start, p.end) for p in parts] == [
+        (("AAA",), date(2021, 1, 15), date(2021, 1, 31)),
+        (("AAA",), date(2021, 2, 1), date(2021, 2, 28)),
+        (("AAA",), date(2021, 3, 1), date(2021, 3, 2)),
+        (("BBB",), date(2021, 1, 15), date(2021, 1, 31)),
+        (("BBB",), date(2021, 2, 1), date(2021, 2, 28)),
+        (("BBB",), date(2021, 3, 1), date(2021, 3, 2)),
+    ]
+    assert len(data_service.partitions(_req(), by="year")) == 2
+
+
+def test_fetch_partitioned_covers_the_same_rows_as_one_big_fetch(data_service):
+    request = _req(date(2021, 1, 4), date(2021, 3, 31))
+    keys = list(C.KEY_COLUMNS)
+    # the synthetic source draws its own path per request, so only the keys are comparable
+    whole = data_service.fetch(request).frame.select(keys).sort(keys)
+    parts = data_service.fetch_partitioned(request).frame.select(keys).sort(keys)
+    assert parts.equals(whole)
+    assert data_service.cached_file(data_service.partitions(request)[0]).exists()
+
+
+def test_fetch_partitioned_rejects_an_unknown_unit(data_service):
+    with pytest.raises(DataError):
+        data_service.partitions(_req(), by="week")

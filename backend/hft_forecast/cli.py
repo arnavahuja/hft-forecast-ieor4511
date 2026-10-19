@@ -169,6 +169,83 @@ def data_pull(
     typer.echo(f"{len(data)} rows, {len(data.instruments)} instruments, fields {data.fields}")
 
 
+@data_app.command("pull-taq")
+def data_pull_taq(
+    manifest: Annotated[str, typer.Option(help="Manifest name, e.g. sp50_2024h1_5s")],
+    start: Annotated[str, typer.Option(help="YYYY-MM-DD")],
+    end: Annotated[str, typer.Option(help="YYYY-MM-DD")],
+    symbols: Annotated[list[str] | None, typer.Argument(help="Ticker symbols")] = None,
+    symbols_file: Annotated[
+        Path | None, typer.Option(help="File with one ticker per line", exists=True)
+    ] = None,
+    grid: Annotated[Frequency, typer.Option(help="Bar size")] = Frequency.S5,
+    trades: Annotated[bool, typer.Option(help="Also pull taq_trade_bars")] = True,
+) -> None:
+    """Pull TAQ bars one instrument-month at a time and record them in a manifest.
+
+    Re-running the same command resumes: cached months are served from disk and the manifest
+    is merged, so a multi-hour pull survives an interruption.
+    """
+    from hft_forecast.data.manifest import Manifest, ManifestEntry
+
+    services = _services()
+    tickers = sorted({*(symbols or []), *_read_symbols(symbols_file)})
+    if not tickers:
+        typer.echo("error: give ticker symbols or --symbols-file", err=True)
+        raise typer.Exit(2)
+    data = services.data
+    directory = data.paths.manifests_dir
+    book = (
+        Manifest.load(directory, manifest)
+        if (directory / f"{manifest}.yaml").exists()
+        else Manifest(name=manifest, source="wrds_taq", frequency=grid.value)
+    )
+    datasets = ["taq_nbbo_bars", *(["taq_trade_bars"] if trades else [])]
+    totals = {"error": 0, "warning": 0, "info": 0}
+    for dataset in datasets:
+        request = DataRequest(
+            source="wrds_taq",
+            dataset=dataset,
+            instruments=tuple(tickers),
+            start=date.fromisoformat(start),
+            end=date.fromisoformat(end),
+            frequency=grid,
+        )
+        for part in data.partitions(request):
+            label = f"{part.instruments[0]} {part.start:%Y-%m} {dataset}"
+            try:
+                fetched = data.fetch(part)
+            except BackboneError as exc:
+                typer.echo(f"  {label}: skipped ({exc.message})", err=True)
+                continue
+            path = data.cached_file(part)
+            book = book.merged(
+                [
+                    ManifestEntry(
+                        instrument=part.instruments[0],
+                        dataset=dataset,
+                        start=part.start.isoformat(),
+                        end=part.end.isoformat(),
+                        rows=len(fetched),
+                        path=str(path or ""),
+                    )
+                ]
+            )
+            book.save(directory)
+            record = data.catalog.get(part.key_without_dates())
+            for severity, count in record.quality.items():
+                totals[severity] = totals.get(severity, 0) + count
+            typer.echo(f"  {label}: {len(fetched)} rows")
+    typer.echo(f"manifest {book.save(directory)} ({len(book.entries)} partitions)")
+    typer.echo("quality: " + ", ".join(f"{k} {v}" for k, v in totals.items()))
+
+
+def _read_symbols(path: Path | None) -> list[str]:
+    if path is None:
+        return []
+    return [line.strip().upper() for line in path.read_text().splitlines() if line.strip()]
+
+
 @data_app.command("import")
 def data_import(
     path: Annotated[Path, typer.Argument(exists=True)],

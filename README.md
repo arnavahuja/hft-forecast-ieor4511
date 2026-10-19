@@ -29,6 +29,8 @@ From the command line:
 ```bash
 hftf run configs/examples/buy_and_hold_synthetic.yaml
 hftf data pull SPY QQQ --start 2015-01-01 --end 2024-12-31
+hftf data pull-taq --manifest sp50_2024h1_5s --symbols-file symbols.txt \
+  --start 2024-01-02 --end 2024-06-28 --grid 5s
 hftf data import my_prices.csv
 hftf new strategy my_strategy
 hftf plugins
@@ -38,7 +40,7 @@ hftf plugins
 
 | Area | Highlights |
 |---|---|
-| Data | WRDS (CRSP daily with delisting returns, S&P 500 point-in-time membership, TAQ bars), Yahoo for daily benchmarks, local CSV/Parquet/Excel/Feather import with a mapping wizard, synthetic data. Versioned Parquet cache, DuckDB catalog, data quality reports |
+| Data | WRDS (CRSP daily with delisting returns, S&P 500 point-in-time membership, TAQ NBBO quote bars and trade bars), Yahoo for daily benchmarks, local CSV/Parquet/Excel/Feather import with a mapping wizard, synthetic data. Versioned Parquet cache, DuckDB catalog, data quality reports |
 | Engines | Vectorized (closed-form drift, lag >= 1 enforced, open/close execution, rebalance schedules) and event-driven (market/limit/stop/stop-limit, TIF, partial fills, latency, fill models). Parity within 1e-10 at zero cost |
 | Pipeline | `buy_and_hold` reference strategy, three portfolio constructors (equal weight, signal proportional, quantile long/short), sizing and limit overlays, before/after reporting per overlay |
 | Analytics | Metric groups including deflated Sharpe, PSR and bootstrap CIs; charts, HTML tearsheet, CSV/Parquet export, comparison report, date-range brushing that recomputes metrics |
@@ -76,8 +78,19 @@ Set `WRDS_USERNAME` in `.env`. The password is read from `~/.pgpass` by the `wrd
 create it once with `python -c "import wrds; wrds.Connection()"`. Settings -> Test
 connection checks it. Nothing secret is stored by this package.
 
+`hftf data pull-taq` aggregates server-side (one SQL per session), caches one Parquet file per
+instrument-month, and records the result in `data/manifests/<name>.yaml`. Re-running the same
+command resumes a partial pull. Expect 2-6 hours for 50 names x 6 months; run it as a
+background job, not interactively.
+
+The NBBO schema differs by year, so `wrds_taq.NBBO_COLUMNS` holds the column names that have
+actually been verified on WRDS (2024 so far). Add a year only after checking it with
+`wrds.Connection().describe_table("taqm_<year>", "nbbom_<yyyymmdd>")`; the source refuses to
+guess. Verify the `qu_cond` vocabulary for that year at the same time.
+
 Data scope is capped at roughly 50 names x 6 months of TAQ quote bars: a full S&P 500 year
-through per-session WRDS SQL is not feasible on one laptop.
+through per-session WRDS SQL is not feasible on one laptop. Raw (unaggregated) NBBO is a
+separate, uncached source capped at 5 symbols x 20 sessions.
 
 ## Documentation
 

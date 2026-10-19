@@ -27,6 +27,17 @@ economically through the existing engine, by seven people working in three group
 - **`freq:subminute`** replaces the deleted `asset:future` / `asset:option` /
   `needs:fundamentals` / `needs:options_chain` capabilities. A plugin without it is rejected
   at config time on `S1`..`S30` data.
+- **TAQ lives in its own source.** `data/sources/wrds_taq.py` holds `taq_nbbo_bars` (the
+  default for every horizon group) and `taq_trade_bars`; `wrds_crsp.py` keeps CRSP and the
+  universes, and both share `wrds_connection.WrdsConnection`. Bars are right-closed and
+  labelled at the bar end, quote filters run in SQL before aggregation, and missing buckets
+  are forward-filled within the session and flagged by `is_stale`.
+- **Per-year NBBO column names.** `NBBO_COLUMNS` maps a year to the column names verified on
+  WRDS with `describe_table`; an unverified year raises instead of guessing, because the
+  `taqm_*` schema and the `qu_cond` vocabulary both vary by year.
+- **`taq_nbbo_raw` is a second plugin** (`wrds_taq_raw`), not a third dataset: `cacheable` is
+  a property of the source, and millions of quote rows per symbol-session must not enter the
+  Parquet cache. It is capped at 5 symbols x 20 sessions.
 - **New `ml` package** (added from milestone M2) sits between `analytics` and `services` in
   the layer order: `ml.economic` needs the engine and `ml.evaluate` needs `analytics.stats`,
   while `services` orchestrates `ml`. Models and feature sets get arrays in and arrays out and

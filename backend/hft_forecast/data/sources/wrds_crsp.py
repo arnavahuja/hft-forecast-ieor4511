@@ -1,24 +1,17 @@
-"""WRDS data source: CRSP, Compustat, Fama-French factors and point-in-time universes.
-
-Credentials: the WRDS user name comes from ``WRDS_USERNAME`` in ``.env``; the password is read
-by the ``wrds`` library from ``~/.pgpass``. Nothing secret is ever stored by this package.
+"""WRDS data source: CRSP daily and monthly stock files and point-in-time universes.
 
 Correctness:
     * PERMNO is the stable identifier (``instrument_id``); tickers are metadata.
     * Delisted securities are included and delisting returns are merged into ``ret``
       (``(1 + ret)(1 + dlret) - 1`` on the delisting date), so results are survivorship-free.
-    * Compustat fundamentals are stamped with a conservative public-availability date
-      (``datadate + availability_lag_days``), never the fiscal period end.
     * Index universes are point-in-time (``crsp.dsp500list`` start/end dates) and returned as a
       ``universe_member`` field.
 """
 
 from __future__ import annotations
 
-import os
-from datetime import date, timedelta
-from pathlib import Path
-from typing import Any, ClassVar, Final
+from datetime import date
+from typing import ClassVar, Final
 
 import numpy as np
 import pandas as pd
@@ -26,9 +19,7 @@ import polars as pl
 from pydantic import Field
 
 from hft_forecast.core import columns as C
-from hft_forecast.core.calendar import TradingCalendar
-from hft_forecast.core.errors import DataError, DataSourceUnavailableError
-from hft_forecast.core.interfaces import DataSource
+from hft_forecast.core.errors import DataError
 from hft_forecast.core.params import SourceParams
 from hft_forecast.core.registry import register
 from hft_forecast.core.types import (
@@ -39,77 +30,28 @@ from hft_forecast.core.types import (
     Frequency,
     Instrument,
     MarketData,
-    OptionRight,
 )
 from hft_forecast.data.normalize import normalize_frame
+from hft_forecast.data.sources.wrds_connection import WrdsConnection
 
 UNIVERSE_FIELD: Final = "universe_member"
-FACTORS_ID: Final = "FF"
 SHARES_SCALE: Final = 1_000.0
 """CRSP ``shrout`` is in thousands of shares."""
 SEARCH_LIMIT: Final = 25
 COMMON_SHARE_CODES: Final = (10, 11)
 MAJOR_EXCHANGES: Final = (1, 2, 3)
 
-FACTOR_COLUMNS: Final = {
-    "mktrf": "mkt_rf",
-    "smb": "smb",
-    "hml": "hml",
-    "rmw": "rmw",
-    "cma": "cma",
-    "rf": "rf",
-    "umd": "mom",
-}
-FUNDAMENTAL_COLUMNS: Final = {
-    "ceq": "common_equity",
-    "at": "total_assets",
-    "lt": "total_liabilities",
-    "sale": "sales",
-    "revt": "revenue",
-    "cogs": "cogs",
-    "ni": "net_income",
-    "oibdp": "ebitda",
-    "capx": "capex",
-    "dvc": "dividends_common",
-    "seq": "stockholders_equity",
-    "pstk": "preferred_stock",
-    "pstkrv": "preferred_redemption",
-    "pstkl": "preferred_liquidating",
-    "txditc": "deferred_taxes",
-}
 UNIVERSE_SP500: Final = "sp500"
 UNIVERSE_COMMON: Final = "crsp_common"
 KNOWN_UNIVERSES: Final = (UNIVERSE_SP500, UNIVERSE_COMMON)
 PERFORMANCE_DELISTING: Final = (500, *range(520, 585))
 """Delisting codes treated as performance-related (Shumway 1997)."""
 NASDAQ: Final = 3
-INDEX_SERIES: Final = {
-    "CRSP_VW": "vwretd",
-    "CRSP_VW_EXDIV": "vwretx",
-    "CRSP_EW": "ewretd",
-    "CRSP_EW_EXDIV": "ewretx",
-    "SP500": "sprtrn",
-}
-TREASURY_SERIES: Final = (
-    "b1ret",
-    "b2ret",
-    "b5ret",
-    "b7ret",
-    "b10ret",
-    "b20ret",
-    "b30ret",
-    "t30ret",
-    "t90ret",
-)
-INDEX_BASE: Final = 100.0
 
 
 class WrdsParams(SourceParams):
     """WRDS source parameters (no secrets)."""
 
-    availability_lag_days: int = Field(
-        180, ge=0, le=730, description="Days after fiscal year end before fundamentals are used"
-    )
     common_stock_only: bool = Field(True, description="Restrict universes to share codes 10/11")
     share_codes: list[int] = Field(
         default_factory=lambda: list(COMMON_SHARE_CODES),
@@ -133,10 +75,6 @@ class WrdsParams(SourceParams):
     )
 
 
-def _pgpass_path() -> Path:
-    return Path(os.environ.get("PGPASSFILE", Path.home() / ".pgpass"))
-
-
 def _num(df: pd.DataFrame, name: str, default: float = np.nan) -> pd.Series[float]:
     """Numeric column (or a constant column when missing)."""
     if name in df:
@@ -147,11 +85,6 @@ def _num(df: pd.DataFrame, name: str, default: float = np.nan) -> pd.Series[floa
 def _pid(value: object) -> str:
     """PERMNO as a string id (WRDS may return floats)."""
     return str(int(float(str(value))))
-
-
-def _month_start(day: date) -> date:
-    """First day of the month (monthly tables may be dated at month start)."""
-    return day.replace(day=1)
 
 
 def _sql_list(values: list[str] | tuple[str, ...]) -> str:
@@ -241,214 +174,19 @@ def membership_flags(daily: pd.DataFrame, spans: pd.DataFrame) -> pd.Series[floa
     return flags.reindex(daily.index, fill_value=False).astype(float)
 
 
-def fundamentals_to_canonical(frame: pd.DataFrame, lag_days: int) -> pl.DataFrame:
-    """Compustat rows (already linked to permno) stamped at their availability date."""
-    df = frame.copy()
-    available = pd.to_datetime(df["datadate"]) + pd.Timedelta(days=lag_days)
-    out = pd.DataFrame(
-        {
-            C.TIMESTAMP: available.dt.tz_localize("UTC"),
-            C.INSTRUMENT: df["permno"].astype("Int64").astype(str),
-            "fiscal_period_end": pd.to_datetime(df["datadate"]).dt.strftime("%Y-%m-%d"),
-        }
-    )
-    for src, dst in FUNDAMENTAL_COLUMNS.items():
-        if src in df:
-            out[dst] = _num(df, src)
-    out["fiscal_year"] = pd.to_datetime(df["datadate"]).dt.year.astype(float)
-    out["book_equity"] = book_equity(df)
-    return normalize_frame(pl.from_pandas(out))
-
-
-def series_to_canonical(frame: pd.DataFrame, series: dict[str, str]) -> pl.DataFrame:
-    """Return series (``{instrument: column}``) to instruments priced as a cumulative index."""
-    parts = []
-    dates = pd.to_datetime(frame["date"]).dt.tz_localize("UTC")
-    for inst, col in series.items():
-        if col not in frame:
-            continue
-        ret = _num(frame, col)
-        level = INDEX_BASE * (1.0 + ret.fillna(0.0)).cumprod()
-        parts.append(
-            pd.DataFrame({C.TIMESTAMP: dates, C.INSTRUMENT: inst, C.CLOSE: level, C.RETURN: ret})
-        )
-    if not parts:
-        raise DataError("None of the requested series exist", details={"known": list(series)})
-    return normalize_frame(pl.from_pandas(pd.concat(parts, ignore_index=True)))
-
-
-def book_equity(df: pd.DataFrame) -> pd.Series[float]:
-    """Fama-French book equity: SE + deferred taxes - preferred stock (millions).
-
-    SE is ``seq``, else ``ceq + pstk``, else ``at - lt``; preferred stock is ``pstkrv``, else
-    ``pstkl``, else ``pstk`` (missing counts as 0).
-    """
-    se = _num(df, "seq")
-    se = se.fillna(_num(df, "ceq") + _num(df, "pstk").fillna(0.0))
-    se = se.fillna(_num(df, "at") - _num(df, "lt"))
-    pref = _num(df, "pstkrv").fillna(_num(df, "pstkl")).fillna(_num(df, "pstk")).fillna(0.0)
-    return se + _num(df, "txditc").fillna(0.0) - pref
-
-
-def factors_to_canonical(frame: pd.DataFrame) -> pl.DataFrame:
-    """Fama-French factor rows to a single-instrument (``FF``) canonical frame."""
-    df = frame.copy()
-    out = pd.DataFrame(
-        {
-            C.TIMESTAMP: pd.to_datetime(df["date"]).dt.tz_localize("UTC"),
-            C.INSTRUMENT: FACTORS_ID,
-        }
-    )
-    for src, dst in FACTOR_COLUMNS.items():
-        if src in df:
-            out[dst] = _num(df, src)
-    return normalize_frame(pl.from_pandas(out))
-
-
-TAQ_TZ: Final = "America/New_York"
-TAQ_OPEN: Final = "09:30:00"
-TAQ_CLOSE: Final = "16:00:00"
-
-
-def taq_sql(day: date, minutes: int) -> str:
-    """Bar aggregation query over one day's TAQ millisecond trade table."""
-    table = f"taqm_{day.year}.ctm_{day:%Y%m%d}"
-    seconds = 60 * minutes
-    return (
-        "select sym_root, floor(extract(epoch from time_m) / "
-        f"{seconds}) as bucket, "
-        "(array_agg(price order by time_m))[1] as open, max(price) as high, "
-        "min(price) as low, (array_agg(price order by time_m desc))[1] as close, "
-        f"sum(size) as volume from {table} "
-        "where sym_root in %(syms)s and sym_suffix is null and tr_corr = '00' "
-        f"and time_m >= '{TAQ_OPEN}' and time_m < '{TAQ_CLOSE}' "
-        "group by sym_root, bucket order by sym_root, bucket"
-    )
-
-
-def taq_to_canonical(frame: pd.DataFrame, day: date, minutes: int) -> pl.DataFrame:
-    """TAQ bar rows (bucket = seconds-since-midnight / bar length) to canonical form."""
-    local = pd.Timestamp(day) + pd.to_timedelta(
-        frame["bucket"].astype(float) * 60 * minutes, unit="s"
-    )
-    out = pd.DataFrame(
-        {
-            C.TIMESTAMP: local.dt.tz_localize(TAQ_TZ).dt.tz_convert("UTC"),
-            C.INSTRUMENT: frame["sym_root"].astype(str),
-            C.OPEN: _num(frame, "open"),
-            C.HIGH: _num(frame, "high"),
-            C.LOW: _num(frame, "low"),
-            C.CLOSE: _num(frame, "close"),
-            C.VOLUME: _num(frame, "volume"),
-        }
-    )
-    return normalize_frame(pl.from_pandas(out))
-
-
-OPTION_MULTIPLIER: Final = 100.0
-OPTIONM_STRIKE_SCALE: Final = 1000.0
-
-
-def optionm_to_canonical(frame: pd.DataFrame) -> tuple[pl.DataFrame, dict[str, Instrument]]:
-    """OptionMetrics rows (with a ``ticker`` column) to a canonical chain plus metadata."""
-    df = frame.copy()
-    bid, ask = _num(df, "best_bid"), _num(df, "best_offer")
-    strike = _num(df, "strike_price") / OPTIONM_STRIKE_SCALE
-    right = np.where(df["cp_flag"].astype(str).str.upper() == "C", "call", "put")
-    expiry = pd.to_datetime(df["exdate"]).dt.strftime("%Y-%m-%d")
-    ids = df["optionid"].map(_pid)
-    out = pd.DataFrame(
-        {
-            C.TIMESTAMP: pd.to_datetime(df["date"]).dt.tz_localize("UTC"),
-            C.INSTRUMENT: ids,
-            "underlying": df["ticker"].astype(str),
-            "right": right,
-            "expiry": expiry,
-            "strike": strike,
-            "bid": bid,
-            "ask": ask,
-            "mid": (bid + ask) / 2,
-            "iv": _num(df, "impl_volatility"),
-            "delta": _num(df, "delta"),
-            "gamma": _num(df, "gamma"),
-            "vega": _num(df, "vega"),
-            "theta": _num(df, "theta"),
-            "open_interest": _num(df, "open_interest"),
-            C.VOLUME: _num(df, "volume"),
-        }
-    )
-    meta = {}
-    for oid, und, r, k, e in zip(ids, out["underlying"], right, strike, expiry, strict=True):
-        if oid not in meta:
-            meta[oid] = Instrument(
-                id=oid,
-                symbol=oid,
-                asset_class=AssetClass.OPTION,
-                multiplier=OPTION_MULTIPLIER,
-                underlying=und,
-                strike=float(k),
-                expiry=date.fromisoformat(e),
-                right=OptionRight(r),
-            )
-    return normalize_frame(pl.from_pandas(out)), meta
-
-
 @register(
     "data_source",
     name="wrds",
     version="1.0.0",
-    tags=["crsp", "compustat", "fama-french", "academic"],
-    capabilities={"asset:equity", "freq:daily", "needs:fundamentals"},
+    tags=["crsp", "academic"],
+    capabilities={"asset:equity", "freq:daily"},
 )
-class WrdsSource(DataSource):
-    """CRSP stock files, Compustat fundamentals, Fama-French factors and S&P 500 membership."""
+class WrdsSource(WrdsConnection):
+    """CRSP daily and monthly stock files with point-in-time S&P 500 membership."""
 
     Params = WrdsParams
     params: WrdsParams
     source_version: ClassVar[str] = "wrds-1"
-    _connection: Any = None
-
-    # ---- connection
-
-    def available(self) -> tuple[bool, str]:
-        """WRDS needs the ``wrds`` package, a user name and ``~/.pgpass``."""
-        try:
-            import wrds  # noqa: F401
-        except ImportError:
-            return False, "Install the optional extra: pip install -e '.[wrds]'"
-        if not self.env.wrds_username:
-            return False, "Set WRDS_USERNAME in .env"
-        if not _pgpass_path().exists():
-            return False, (
-                '~/.pgpass not found: run `python -c "import wrds; '
-                'wrds.Connection()"` once in a terminal to create it'
-            )
-        return True, ""
-
-    def _connect(self) -> Any:
-        ok, reason = self.available()
-        if not ok:
-            raise DataSourceUnavailableError(reason)
-        if self._connection is None:
-            import wrds
-
-            self._connection = wrds.Connection(wrds_username=self.env.wrds_username)
-        return self._connection
-
-    def _query(
-        self, sql: str, params: dict[str, Any] | None = None, date_cols: list[str] | None = None
-    ) -> pd.DataFrame:
-        """Run SQL on WRDS (isolated so tests can substitute recorded responses)."""
-        frame: pd.DataFrame = self._connect().raw_sql(sql, params=params, date_cols=date_cols)
-        return frame
-
-    def test_connection(self) -> dict[str, Any]:
-        """Connection check used by the Settings page."""
-        try:
-            self._query("select 1 as ok")
-        except Exception as exc:
-            return {"ok": False, "message": f"{type(exc).__name__}: {exc}"}
-        return {"ok": True, "message": f"Connected as {self.env.wrds_username}"}
 
     # ---- description
 
@@ -487,77 +225,6 @@ class WrdsSource(DataSource):
                 quality="research",
                 notes=survivorship + " Universes: " + ", ".join(KNOWN_UNIVERSES),
             ),
-            DatasetInfo(
-                source="wrds",
-                dataset="compustat_annual",
-                description="Compustat annual fundamentals linked to PERMNO, stamped "
-                "at availability date",
-                frequencies=(Frequency.D1,),
-                fields=(*FUNDAMENTAL_COLUMNS.values(), "book_equity", "fiscal_year"),
-                survivorship_bias_free=True,
-                quality="research",
-            ),
-            DatasetInfo(
-                source="wrds",
-                dataset="taq_bars",
-                description="Intraday OHLCV bars aggregated from TAQ trades "
-                "(regular hours, tr_corr = 00)",
-                frequencies=(Frequency.MIN1, Frequency.MIN5, Frequency.MIN15, Frequency.H1),
-                fields=C.OHLCV,
-                quality="research",
-            ),
-            DatasetInfo(
-                source="wrds",
-                dataset="optionm_chain",
-                description="OptionMetrics daily option chains (mid, IV, Greeks, OI) "
-                "for ticker underlyings",
-                frequencies=(Frequency.D1,),
-                asset_classes=(AssetClass.OPTION,),
-                fields=(
-                    "mid",
-                    "bid",
-                    "ask",
-                    "iv",
-                    "delta",
-                    "gamma",
-                    "vega",
-                    "theta",
-                    "open_interest",
-                    C.VOLUME,
-                    "strike",
-                ),
-                quality="research",
-            ),
-            DatasetInfo(
-                source="wrds",
-                dataset="ff_factors",
-                description="Fama-French 5 factors plus momentum and the T-bill rate "
-                "(daily or monthly)",
-                frequencies=(Frequency.D1, Frequency.MO1),
-                asset_classes=(AssetClass.OTHER,),
-                fields=tuple(FACTOR_COLUMNS.values()),
-                quality="research",
-            ),
-            DatasetInfo(
-                source="wrds",
-                dataset="crsp_index",
-                description="CRSP market indices as tradable series: " + ", ".join(INDEX_SERIES),
-                frequencies=(Frequency.D1, Frequency.MO1),
-                asset_classes=(AssetClass.INDEX,),
-                fields=(C.CLOSE, C.RETURN),
-                quality="research",
-                notes="Instruments: " + ", ".join(INDEX_SERIES),
-            ),
-            DatasetInfo(
-                source="wrds",
-                dataset="crsp_treasury",
-                description="CRSP constant-maturity Treasury returns (crsp.mcti)",
-                frequencies=(Frequency.MO1,),
-                asset_classes=(AssetClass.INDEX,),
-                fields=(C.CLOSE, C.RETURN),
-                quality="research",
-                notes="Instruments: " + ", ".join(c.upper() for c in TREASURY_SERIES),
-            ),
         ]
 
     def search_instruments(self, query: str) -> list[Instrument]:
@@ -585,20 +252,9 @@ class WrdsSource(DataSource):
 
     def fetch(self, request: DataRequest) -> MarketData:
         """Dispatch on the dataset."""
-        handlers = {
-            "crsp_daily": self._crsp,
-            "crsp_monthly": self._crsp,
-            "compustat_annual": self._compustat,
-            "ff_factors": self._factors,
-            "taq_bars": self._taq,
-            "optionm_chain": self._optionm,
-            "crsp_index": self._index,
-            "crsp_treasury": self._treasury,
-        }
-        handler = handlers.get(request.dataset)
-        if handler is None:
-            raise DataError(f"Unknown WRDS dataset '{request.dataset}'")
-        return handler(request)
+        if request.dataset in ("crsp_daily", "crsp_monthly"):
+            return self._crsp(request)
+        raise DataError(f"Unknown WRDS dataset '{request.dataset}'")
 
     def _resolve_permnos(
         self, instruments: tuple[str, ...], start: date, end: date
@@ -697,163 +353,4 @@ class WrdsSource(DataSource):
                 "quality": "research",
                 "universe": request.universe or "",
             },
-        )
-
-    def _compustat(self, request: DataRequest) -> MarketData:
-        permnos, _ = self._resolve_permnos(request.instruments, request.start, request.end)
-        lag = self.params.availability_lag_days
-        start = request.start - timedelta(days=lag + 366)
-        fields = ", ".join(f"f.{c}" for c in FUNDAMENTAL_COLUMNS)
-        where_permno = f"and l.lpermno in ({_sql_list(permnos)})" if permnos else ""
-        frame = self._query(
-            f"select l.lpermno as permno, f.datadate, {fields} "
-            "from comp.funda f join crsp.ccmxpf_linktable l on f.gvkey = l.gvkey "
-            "where f.indfmt = 'INDL' and f.datafmt = 'STD' and f.popsrc = 'D' "
-            "and f.consol = 'C' and l.linktype in ('LU', 'LC') and l.linkprim in ('P', 'C') "
-            "and f.datadate >= l.linkdt and (f.datadate <= l.linkenddt or l.linkenddt is null) "
-            f"and f.datadate between %(start)s and %(end)s {where_permno}",
-            params={"start": start, "end": request.end},
-            date_cols=["datadate"],
-        )
-        canon = fundamentals_to_canonical(frame, lag)
-        return MarketData(
-            canon,
-            Frequency.D1,
-            metadata={
-                "source": "wrds",
-                "dataset": "compustat_annual",
-                "availability_lag_days": lag,
-            },
-        )
-
-    def _factors(self, request: DataRequest) -> MarketData:
-        monthly = request.frequency is Frequency.MO1
-        five, mom = (
-            ("ff.fivefactors_monthly", "ff.factors_monthly")
-            if monthly
-            else ("ff.fivefactors_daily", "ff.factors_daily")
-        )
-        frame = self._query(
-            "select a.date, a.mktrf, a.smb, a.hml, a.rmw, a.cma, a.rf, b.umd "
-            f"from {five} a left join {mom} b on a.date = b.date "
-            "where a.date between %(start)s and %(end)s",
-            params={
-                "start": _month_start(request.start) if monthly else request.start,
-                "end": request.end,
-            },
-            date_cols=["date"],
-        )
-        return MarketData(
-            factors_to_canonical(frame),
-            request.frequency if monthly else Frequency.D1,
-            {
-                FACTORS_ID: Instrument(
-                    id=FACTORS_ID, symbol=FACTORS_ID, asset_class=AssetClass.OTHER
-                )
-            },
-            metadata={"source": "wrds", "dataset": "ff_factors"},
-        )
-
-    @staticmethod
-    def _series_ids(request: DataRequest, known: list[str]) -> list[str]:
-        wanted = [i.upper() for i in request.instruments] or known
-        unknown = sorted(set(wanted) - set(known))
-        if unknown:
-            raise DataError(f"Unknown series {unknown}", details={"known": known})
-        return wanted
-
-    def _index(self, request: DataRequest) -> MarketData:
-        ids = self._series_ids(request, list(INDEX_SERIES))
-        table = "crsp.msi" if request.frequency is Frequency.MO1 else "crsp.dsi"
-        cols = ", ".join(sorted({INDEX_SERIES[i] for i in ids}))
-        frame = self._query(
-            f"select date, {cols} from {table} "
-            "where date between %(start)s and %(end)s order by date",
-            params={"start": request.start, "end": request.end},
-            date_cols=["date"],
-        )
-        canon = series_to_canonical(frame, {i: INDEX_SERIES[i] for i in ids})
-        meta = {i: Instrument(id=i, symbol=i, asset_class=AssetClass.INDEX) for i in ids}
-        freq = Frequency.MO1 if request.frequency is Frequency.MO1 else Frequency.D1
-        return MarketData(
-            canon,
-            freq,
-            meta,
-            metadata={"source": "wrds", "dataset": "crsp_index", "adjustment": "total_return"},
-        )
-
-    def _treasury(self, request: DataRequest) -> MarketData:
-        known = [c.upper() for c in TREASURY_SERIES]
-        ids = self._series_ids(request, known)
-        cols = ", ".join(i.lower() for i in ids)
-        frame = self._query(
-            f"select caldt as date, {cols} from crsp.mcti "
-            "where caldt between %(start)s and %(end)s order by caldt",
-            params={"start": _month_start(request.start), "end": request.end},
-            date_cols=["date"],
-        )
-        canon = series_to_canonical(frame, {i: i.lower() for i in ids})
-        meta = {i: Instrument(id=i, symbol=i, asset_class=AssetClass.INDEX) for i in ids}
-        return MarketData(
-            canon,
-            Frequency.MO1,
-            meta,
-            metadata={"source": "wrds", "dataset": "crsp_treasury", "adjustment": "total_return"},
-        )
-
-    def _taq(self, request: DataRequest) -> MarketData:
-        minutes = request.frequency.minutes
-        if minutes is None:
-            raise DataError("TAQ bars need an intraday frequency")
-        syms = tuple(i.upper() for i in request.instruments)
-        if not syms:
-            raise DataError("TAQ bars need ticker symbols")
-        frames = []
-        for day in TradingCalendar().sessions(request.start, request.end):
-            rows = self._query(taq_sql(day, minutes), params={"syms": syms})
-            if len(rows):
-                frames.append(taq_to_canonical(rows, day, minutes))
-        if not frames:
-            raise DataError("TAQ returned no trades for the request")
-        return MarketData(
-            pl.concat(frames),
-            request.frequency,
-            {s: Instrument(id=s, symbol=s) for s in syms},
-            metadata={"source": "wrds", "dataset": "taq_bars", "quality": "research"},
-        )
-
-    def _optionm(self, request: DataRequest) -> MarketData:
-        tickers = tuple(i.upper() for i in request.instruments if not i.isdigit())
-        if not tickers:
-            raise DataError("OptionMetrics chains need ticker underlyings")
-        secids = self._query(
-            "select distinct secid, ticker from optionm.secnmd where ticker in %(t)s",
-            params={"t": tickers},
-        )
-        if secids.empty:
-            raise DataError("No OptionMetrics security ids for these tickers")
-        frames = []
-        for year in range(request.start.year, request.end.year + 1):
-            rows = self._query(
-                "select o.date, o.exdate, o.cp_flag, o.strike_price, o.best_bid, o.best_offer, "
-                "o.impl_volatility, o.delta, o.gamma, o.vega, o.theta, o.open_interest, "
-                f"o.volume, o.optionid, o.secid from optionm.opprcd{year} o "
-                "where o.secid in %(s)s and o.date between %(start)s and %(end)s",
-                params={
-                    "s": tuple(int(x) for x in secids["secid"]),
-                    "start": request.start,
-                    "end": request.end,
-                },
-                date_cols=["date", "exdate"],
-            )
-            if len(rows):
-                frames.append(rows.merge(secids, on="secid", how="left"))
-        if not frames:
-            raise DataError("OptionMetrics returned no rows")
-        chain, meta = optionm_to_canonical(pd.concat(frames, ignore_index=True))
-        return MarketData(
-            chain,
-            Frequency.D1,
-            meta,
-            metadata={"source": "wrds", "dataset": "optionm_chain", "quality": "research"},
         )

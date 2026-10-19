@@ -10,7 +10,7 @@ import re
 import shutil
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -41,16 +41,37 @@ class DataPaths:
     cache_dir: Path
     imports_dir: Path
     catalog_dir: Path
+    manifests_dir: Path
 
     @classmethod
     def under(cls, data_dir: Path) -> DataPaths:
         """Standard layout below ``data_dir``."""
-        return cls(data_dir, data_dir / "cache", data_dir / "imports", data_dir / "catalog")
+        return cls(
+            data_dir,
+            data_dir / "cache",
+            data_dir / "imports",
+            data_dir / "catalog",
+            data_dir / "manifests",
+        )
 
     def ensure(self) -> None:
         """Create the directories."""
-        for p in (self.cache_dir, self.imports_dir, self.catalog_dir):
+        for p in (self.cache_dir, self.imports_dir, self.catalog_dir, self.manifests_dir):
             p.mkdir(parents=True, exist_ok=True)
+
+
+def _periods(start: date, end: date, by: str) -> list[tuple[date, date]]:
+    """Inclusive [start, end] cut into calendar months or years."""
+    out = []
+    cursor = start
+    while cursor <= end:
+        if by == "month":
+            nxt = date(cursor.year + cursor.month // 12, cursor.month % 12 + 1, 1)
+        else:
+            nxt = date(cursor.year + 1, 1, 1)
+        out.append((cursor, min(end, nxt - timedelta(days=1))))
+        cursor = nxt
+    return out
 
 
 def _slug(text: str) -> str:
@@ -181,6 +202,60 @@ class DataService:
         if hit is None:  # pragma: no cover - just stored
             raise DataError("Cache write failed")
         return hit.data
+
+    def partitions(self, request: DataRequest, by: str = "month") -> list[DataRequest]:
+        """Split a request into one request per instrument and per month (or per year).
+
+        Quote data is pulled and cached in slices small enough to hold in memory: roughly
+        100 k rows (1 min) to 500 k rows (5 s) per Parquet file.
+
+        Raises:
+            DataError: If ``by`` is not ``"month"`` or ``"year"``.
+        """
+        if by not in ("month", "year"):
+            raise DataError(f"Unknown partition unit '{by}'")
+        out = []
+        for instrument in request.instruments or ("",):
+            for start, end in _periods(request.start, request.end, by):
+                update: dict[str, Any] = {"start": start, "end": end}
+                if instrument:
+                    update["instruments"] = (instrument,)
+                out.append(request.model_copy(update=update))
+        return out
+
+    def fetch_partitioned(
+        self, request: DataRequest, by: str = "month", **kwargs: Any
+    ) -> MarketData:
+        """Fetch a long request as per-instrument, per-month partitions and concatenate.
+
+        Partitions that return no data are skipped, so a name that was not yet listed in part
+        of the range does not fail the whole pull.
+        """
+        parts = [
+            part
+            for request_part in self.partitions(request, by)
+            if (part := self._fetch_optional(request_part)) is not None
+        ]
+        if not parts:
+            raise DataError("No data for any partition of the request")
+        merged = parts[0]
+        for part in parts[1:]:
+            merged = merged.concat(part)
+        return merged
+
+    def _fetch_optional(self, request: DataRequest) -> MarketData | None:
+        try:
+            return self.fetch(request)
+        except DataError as exc:
+            log.warning("partition_empty", instruments=request.instruments, error=str(exc))
+            return None
+
+    def cached_file(self, request: DataRequest) -> Path | None:
+        """Path of the Parquet file holding a cached request, if it is cached."""
+        latest = self.cache.latest(request.key_without_dates())
+        if latest is None:
+            return None
+        return self.paths.cache_dir / request.key_without_dates() / latest.file
 
     def _register_cache(
         self,

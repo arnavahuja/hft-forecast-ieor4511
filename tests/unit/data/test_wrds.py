@@ -73,19 +73,7 @@ def test_sp500_universe_is_point_in_time(source):
     assert flag[ts >= np.datetime64("2019-01-02"), j].min() == 1
 
 
-def test_compustat_uses_availability_date(source):
-    data = source.fetch(_req("compustat_annual", instruments=("AAA",)))
-    first = data.frame.sort("timestamp").row(0, named=True)
-    fiscal = first["fiscal_period_end"]
-    lag = (first["timestamp"].date() - date.fromisoformat(fiscal)).days
-    assert lag == 180
-    assert "book_equity" in data.fields
-
-
-def test_factors(source):
-    data = source.fetch(_req("ff_factors"))
-    assert data.instruments == ("FF",)
-    assert {"mkt_rf", "smb", "hml", "rmw", "cma", "mom", "rf"} <= set(data.fields)
+def test_connection_check(source):
     assert source.test_connection()["ok"]
 
 
