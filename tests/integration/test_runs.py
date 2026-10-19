@@ -10,9 +10,10 @@ import yaml
 from typer.testing import CliRunner
 
 from hft_forecast.core.config import Settings
-from hft_forecast.core.errors import CompatibilityError
+from hft_forecast.core.errors import CompatibilityError, NotFoundError
 from hft_forecast.core.run_config import PluginRef, RebalanceRule
 from hft_forecast.services.container import Services
+from hft_forecast.services.run_store import RunStatus
 from tests.helpers import config
 
 
@@ -75,3 +76,26 @@ def test_cli_run(tmp_path: Path, monkeypatch):
     result = CliRunner().invoke(app, ["run", str(path)])
     assert result.exit_code == 0, result.output
     assert "completed" in result.output
+
+
+def test_ml_runs_are_stored_without_a_result_and_count_as_trials(services, tmp_path: Path):
+    store = services.store
+    before = store.count_trials("h30s")
+    record = store.create_ml(
+        name="h30s logit_ridge",
+        config={"experiment": "h30s"},
+        config_hash="abc123",
+        experiment="h30s",
+        model="logit_ridge",
+        tags=["ml", "h30s"],
+    )
+    assert record.kind == "ml"
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text("{}")
+    done = store.complete_ml(record.id, {"accuracy": 0.51}, manifest)
+    assert done.status is RunStatus.COMPLETED
+    assert done.headline["accuracy"] == 0.51
+    assert store.ml_metrics(record.id)["accuracy"] == 0.51
+    assert store.count_trials("h30s") == before + 1
+    with pytest.raises(NotFoundError):
+        store.result(record.id)  # no fabricated BacktestResult

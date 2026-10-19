@@ -26,10 +26,11 @@ from hft_forecast.core.errors import NotFoundError
 from hft_forecast.core.results import BacktestResult
 from hft_forecast.core.run_config import BacktestConfig
 from hft_forecast.core.specs import MetricValue
-from hft_forecast.services.result_io import load_result, save_result
+from hft_forecast.services.result_io import META, load_result, save_result
 
 DB_FILE: Final = "hft_forecast.db"
 METRICS_FILE: Final = "metrics.json"
+ML_METRICS_FILE: Final = "ml_metrics.json"
 LOG_FILE: Final = "log.txt"
 RESEARCH_FILE: Final = "research.json"
 FACTORS_FILE: Final = "factors.parquet"
@@ -257,6 +258,85 @@ class RunStore:
             )
         return self.get(run_id)
 
+    def create_ml(
+        self,
+        *,
+        name: str,
+        config: dict[str, Any],
+        config_hash: str,
+        experiment: str,
+        model: str,
+        tags: list[str],
+        notes: str = "",
+    ) -> RunRecord:
+        """Insert a queued ML run. Same table as a backtest, ``kind='ml'``.
+
+        An ML run has no ``BacktestConfig``, so it cannot go through :meth:`create`; the
+        economic test (which does have one) is registered as a separate backtest run.
+        """
+        run_id = uuid.uuid4().hex[:12]
+        now = _now()
+        with self._connect() as con:
+            con.execute(
+                "INSERT OR IGNORE INTO experiments(name, created_at) VALUES (?, ?)",
+                (experiment, now),
+            )
+            con.execute(
+                "INSERT INTO runs(id, name, status, created_at, config_json, config_hash, "
+                "strategy, engine, tags_json, notes, experiment, kind) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ml')",
+                (
+                    run_id,
+                    name,
+                    RunStatus.QUEUED.value,
+                    now,
+                    json.dumps(config, default=str),
+                    config_hash,
+                    model,
+                    "none",
+                    json.dumps(tags),
+                    notes,
+                    experiment,
+                ),
+            )
+        return self.get(run_id)
+
+    def complete_ml(
+        self,
+        run_id: str,
+        metrics: dict[str, Any],
+        manifest_path: Path,
+        *,
+        headline: dict[str, float | None] | None = None,
+        git_commit: str | None = None,
+        timings: dict[str, float] | None = None,
+    ) -> RunRecord:
+        """Finish an ML run: metrics without a ``BacktestResult``.
+
+        The run's result slot stays empty until the economic test fills it; faking an empty
+        result so :meth:`complete` could be reused would put a meaningless equity curve in
+        the UI.
+        """
+        directory = self.run_dir(run_id)
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / ML_METRICS_FILE).write_text(json.dumps(metrics, indent=1, default=str))
+        flat = headline if headline is not None else _scalars(metrics)
+        with self._connect() as con:
+            con.execute(
+                "UPDATE runs SET status=?, finished_at=?, git_commit=?, timings_json=?, "
+                "headline_json=?, data_refs_json=?, error=NULL WHERE id=?",
+                (
+                    RunStatus.COMPLETED.value,
+                    _now(),
+                    git_commit,
+                    json.dumps(timings or {}),
+                    json.dumps(flat, default=str),
+                    json.dumps({"manifest": str(manifest_path)}),
+                    run_id,
+                ),
+            )
+        return self.get(run_id)
+
     def mark_running(self, run_id: str) -> None:
         """Set status to running."""
         with self._connect() as con:
@@ -313,6 +393,18 @@ class RunStore:
                 ),
             )
         return self.get(run_id)
+
+    def ml_metrics(self, run_id: str) -> dict[str, Any]:
+        """Statistical metrics of an ML run (not the ``MetricValue`` map of a backtest).
+
+        Raises:
+            NotFoundError: If the run has none.
+        """
+        path = self.run_dir(run_id) / ML_METRICS_FILE
+        if not path.exists():
+            raise NotFoundError(f"Run '{run_id}' has no ML metrics")
+        data: dict[str, Any] = json.loads(path.read_text())
+        return data
 
     def update_labels(
         self,
@@ -416,7 +508,8 @@ class RunStore:
         """Load a completed run's result."""
         record = self.get(run_id)
         directory = self.run_dir(run_id)
-        if record.status is not RunStatus.COMPLETED or not directory.exists():
+        # an ML run completes with metrics and no result, so the file has to be checked too
+        if record.status is not RunStatus.COMPLETED or not (directory / META).exists():
             raise NotFoundError(f"Run '{run_id}' has no results (status {record.status})")
         return load_result(directory)
 
@@ -485,7 +578,8 @@ class RunStore:
                 "SELECT COUNT(*) FROM research_trials WHERE experiment=?", (experiment,)
             ).fetchone()[0]
             runs = con.execute(
-                "SELECT COUNT(*) FROM runs WHERE experiment=? AND kind='backtest'", (experiment,)
+                "SELECT COUNT(*) FROM runs WHERE experiment=? AND kind IN ('backtest', 'ml')",
+                (experiment,),
             ).fetchone()[0]
         return int(research) + int(runs)
 
@@ -499,7 +593,13 @@ class RunStore:
             ).fetchall()
         research = [float(r[0]) for r in extra if r[0] is not None]
         n_research = len(extra)
-        runs = self.list_runs(experiment=experiment, include_archived=True, kind="backtest")
+        # ML runs count as trials too: every evaluated configuration is one, which is the
+        # whole point of trial counting
+        runs = [
+            r
+            for kind in ("backtest", "ml")
+            for r in self.list_runs(experiment=experiment, include_archived=True, kind=kind)
+        ]
         sharpes = [
             float(s)
             for r in runs
@@ -568,6 +668,11 @@ class RunStore:
         self.preset(preset_id)
         with self._connect() as con:
             con.execute("DELETE FROM presets WHERE id=?", (preset_id,))
+
+
+def _scalars(metrics: dict[str, Any]) -> dict[str, float | None]:
+    """The top-level numbers of an ML metrics blob, for the run list."""
+    return {k: float(v) for k, v in metrics.items() if isinstance(v, (int, float))}
 
 
 def _per_period_sharpe(annual: float | None, periods_per_year: float) -> float | None:
