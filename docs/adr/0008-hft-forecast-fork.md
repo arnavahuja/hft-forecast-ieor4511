@@ -44,6 +44,23 @@ economically through the existing engine, by seven people working in three group
   may not import data loading, CV or evaluation — an import-linter contract enforces this, and
   it is what lets three groups add models without touching shared code.
 
+## Deviations from the design document
+Four places where the design could not be implemented as written; each is small and the
+reason is recorded in the code:
+
+- **`taq_nbbo_raw` is its own source.** ``cacheable`` is a property of a source, not of a
+  dataset, so the raw quotes live in a sibling plugin rather than a third dataset.
+- **Effective sample size sums the uniqueness weights** instead of the Kish formula
+  ``(sum w)^2 / sum w^2`` the design names. Kish measures how unequal the weights are, so
+  perfectly overlapping labels would score ``n`` rather than ``n / steps``.
+- **The third cost variant stresses the spread** rather than stacking square-root impact on
+  the quoted spread: a run has one slippage model. The breakeven cost multiple answers the
+  same question directly.
+- **`Forecaster` and `FeatureSet` are abstract base classes**, not typing protocols, so the
+  registries can instantiate them the way every other plugin kind is instantiated. The
+  signatures are the ones the design specifies, and ``set_feature_names`` keeps ``fit``
+  purely numerical while letting a model name a column.
+
 ## Consequences
 - Golden snapshots collapse to `buy_and_hold`; the remaining engine, overlay and research
   tests parametrize over cost and execution variants instead of over deleted strategies.
@@ -51,3 +68,8 @@ economically through the existing engine, by seven people working in three group
   hierarchy that the API serializes buys nothing and the front end does not match on it.
 - Research sweeps in this repo target overlay parameters, since the only shipped strategy has
   none.
+- ML runs share the `runs` table with backtests under `kind='ml'`: they store metrics and a
+  manifest, never a fabricated `BacktestResult`, and they count as trials.
+- The engine gained exactly one interface change, `CostContext.extra_panels` with
+  `CostModel.requires` (plus `BarSnapshot.spread`), which is what lets a cost model read the
+  quoted spread from the data instead of assuming one.

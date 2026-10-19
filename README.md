@@ -2,12 +2,8 @@
 
 Short-horizon price forecasting on TAQ quote data, with the economic test run through a
 backtesting engine. A fork of `backbone` pruned down to what this capstone needs: equity
-quote bars, one reference strategy, and (from milestone M2) an `ml/` package for labels,
-features, purged cross-validation, models and evaluation.
-
-Three horizon groups share one pipeline: **30 s** on a 5 s mid-price grid, **5 min** and
-**30 min** on a 1 min grid. The shared interfaces are frozen once M2 lands; each group then
-works inside `ml/horizons/<h>/`, `ml/models/` and `ml/features/`.
+quote bars, one reference strategy, and an `ml/` package for labels, features, purged
+cross-validation, models and evaluation.
 
 Everything runs on your machine and binds to `127.0.0.1`.
 
@@ -27,6 +23,10 @@ benchmark `MKT`, and press **Run backtest**.
 From the command line:
 
 ```bash
+hftf ml run backend/hft_forecast/ml/horizons/h5m/config.yaml   # train and predict
+hftf ml econ <run_id>                                          # the economic test
+hftf ml compare --experiment h30s --experiment h5m --experiment h30m --out report/
+
 hftf run configs/examples/buy_and_hold_synthetic.yaml
 hftf data pull SPY QQQ --start 2015-01-01 --end 2024-12-31
 hftf data pull-taq --manifest sp50_2024h1_5s --symbols-file symbols.txt \
@@ -45,12 +45,14 @@ hftf plugins
 | Pipeline | `buy_and_hold` reference strategy, three portfolio constructors (equal weight, signal proportional, quantile long/short), sizing and limit overlays, before/after reporting per overlay |
 | Analytics | Metric groups including deflated Sharpe, PSR and bootstrap CIs; charts, HTML tearsheet, CSV/Parquet export, comparison report, date-range brushing that recomputes metrics |
 | Research | Grid/random sweeps, walk-forward, Monte Carlo, cost/delay/capacity sensitivity, regime analysis, PBO (CSCV), locked test period |
+| ML | Session-guarded forward-return labels, causal feature sets with an automatic lookahead test, purged and embargoed walk-forward CV with uniqueness weights, three baselines plus two stubs, block-bootstrap metrics, DSR/PBO and one comparison table |
 | Front end | View-only for this project: data quality reports and economic-test runs. No new pages |
 
 ## Layout
 
 ```
-backend/hft_forecast/   core, data, engine, strategies, portfolio, analytics, services, api, cli
+backend/hft_forecast/   core, data, engine, strategies, portfolio, analytics, ml, services, api, cli
+    ml/horizons/h30s|h5m|h30m   one folder per group (config + README)
 frontend/           React + Vite + TypeScript UI (generated API client in src/api)
 tests/              unit, integration, golden, fixtures (no network needed)
 user_plugins/       your plugins (auto-discovered, hot-reloaded in dev mode)
@@ -59,9 +61,31 @@ docs/               how-to guides, ADRs, phase log, performance notes
 configs/examples/   example run configs
 ```
 
-Layering (`core <- data <- engine <- analytics <- services <- api`, plugins depend only on
-`core`) is enforced by import-linter. The `ml` package will sit between `analytics` and
-`services` (ADR 0008).
+Layering (`core <- data <- engine <- analytics <- ml <- services <- api`, plugins depend only
+on `core`) is enforced by import-linter. Two further contracts matter to the groups: a model
+or feature set may not import training, CV or evaluation code, and the three horizon packages
+may not import each other (ADR 0008).
+
+## Working in three groups
+
+Three horizon groups share one pipeline: **30 s** on a 5 s mid-price grid, **5 min** and
+**30 min** on a 1 min grid. Each group owns `ml/horizons/<h>/`, its own files under
+`ml/models/` and `ml/features/`, and anything in `user_plugins/`.
+
+Changing the **frozen interface** needs a PR reviewed by one person from each group:
+
+1. the canonical bar schema and `bar_label = "end"`
+2. `hftf data pull-taq` and the manifests — the only way data enters the repo
+3. `HorizonSpec`, `LabelParams`, `make_labels`
+4. the `FeatureSet` base, its registry and the causality test
+5. `CVSpec`, `split`, `label_uniqueness`
+6. the `Forecaster` base, the `Prediction` schema and the `predictions.parquet` layout
+7. `run_experiment`'s outputs and the `RunStore` registration
+8. `ml/economic.py`, `prediction_signal`, `quoted_spread`
+9. the metric names in `ml/evaluate.py` and the table rows in `ml/report.py`
+
+Every configuration anyone evaluates is one trial of its experiment (`h30s`, `h5m`, `h30m`),
+and the deflated Sharpe divides by that count. Do not delete runs.
 
 ## Development
 

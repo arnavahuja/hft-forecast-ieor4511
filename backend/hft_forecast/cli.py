@@ -430,8 +430,9 @@ def ml_econ(
     services = _services()
     record = services.store.get(run_id)
     cfg = ExperimentConfig.model_validate(record.config)
-    predictions = services.store.run_dir(run_id) / PREDICTIONS_FILE
-    label = f"{cfg.model.name}@{record.plugin_versions.get(cfg.model.name, '1.0.0')}"
+    directory = services.store.run_dir(run_id)
+    predictions = directory / PREDICTIONS_FILE
+    label = str(json.loads((directory / MANIFEST_FILE).read_text())["model"])
     configs = (
         [cross_sectional_config(cfg, predictions, label, variant)]
         if cross_sectional
