@@ -294,8 +294,6 @@ class ResultService:
             )
         if len(distinct(lambda c: (c.get("costs"), c.get("slippage")))) > 1:
             warnings.append("Runs use different cost or slippage assumptions.")
-        if len(distinct(lambda c: c["execution"]["engine"])) > 1:
-            warnings.append("Runs use different engines.")
         if len(distinct(lambda c: c["data"]["frequency"])) > 1:
             warnings.append("Runs use different bar frequencies.")
         return warnings

@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from hft_forecast.core.run_config import BacktestConfig
-from hft_forecast.core.specs import ChartSpec, MetricDescriptor, MetricValue
+from hft_forecast.core.specs import MetricDescriptor, MetricValue
 from hft_forecast.core.types import Adjustment, Frequency
 from hft_forecast.data.importer import ImportMapping
-from hft_forecast.services.compatibility import CompatibilityIssue
 from hft_forecast.services.run_store import RunRecord
 
 
@@ -119,13 +118,6 @@ class JobDetailOut(JobOut):
     logs: list[str] = Field(default_factory=list)
 
 
-class ValidateOut(OutputModel):
-    """Compatibility check result."""
-
-    ok: bool
-    issues: list[CompatibilityIssue]
-
-
 class RunCreate(BaseModel):
     """Launch a run."""
 
@@ -209,23 +201,6 @@ class CombineRequest(BaseModel):
 
     run_ids: list[str] = Field(min_length=1)
     weights: list[float] | None = None
-
-
-class PresetIn(BaseModel):
-    """Create or update a preset."""
-
-    name: str = Field(min_length=1)
-    config: dict[str, Any]
-    notes: str = ""
-
-
-class LookaheadOut(OutputModel):
-    """Lookahead check result."""
-
-    passed: bool
-    message: str
-    cut_points: list[str]
-    mismatches: list[dict[str, Any]]
 
 
 class SettingsOut(OutputModel):
@@ -335,81 +310,3 @@ class WrdsTestOut(OutputModel):
 
     ok: bool
     message: str
-
-
-class RandomSpace(BaseModel):
-    """Random search space."""
-
-    space: dict[str, dict[str, Any]]
-    n: int = Field(50, ge=1, le=2000)
-
-
-class SweepRequest(BaseModel):
-    """Parameter sweep."""
-
-    config: BacktestConfig
-    target: str = "strategy"
-    grid: dict[str, list[Any]] | None = None
-    random: RandomSpace | None = None
-    metric: str = "sharpe"
-    seed: int | None = None
-
-
-class WalkForwardRequest(BaseModel):
-    """Walk-forward optimization."""
-
-    config: BacktestConfig
-    target: str = "strategy"
-    grid: dict[str, list[Any]]
-    train_bars: int | None = Field(None, ge=20)
-    test_bars: int | None = Field(None, ge=5)
-    anchored: bool = False
-    metric: str = "sharpe"
-
-
-class MonteCarloRequest(BaseModel):
-    """Monte Carlo of a stored run."""
-
-    run_id: str
-    method: Literal["bootstrap", "trades"] = "bootstrap"
-    n_paths: int = Field(1000, ge=100, le=20000)
-    mean_block: float = Field(5.0, ge=1, le=250)
-    horizon: int | None = Field(None, ge=10)
-    seed: int = 7
-
-
-class SensitivityRequest(BaseModel):
-    """Cost, delay or capacity sensitivity."""
-
-    config: BacktestConfig
-    kind: Literal["cost", "delay", "capacity"] = "cost"
-    multiples: list[float] | None = None
-    delays: list[int] | None = None
-    capitals: list[float] | None = None
-
-
-class TableColumnOut(OutputModel):
-    """A column of a research table."""
-
-    key: str
-    label: str
-    format: str | None
-
-
-class TableOut(OutputModel):
-    """A generic table."""
-
-    title: str
-    columns: list[TableColumnOut]
-    rows: list[dict[str, Any]]
-
-
-class ResearchResultOut(OutputModel):
-    """A research result rendered generically by the front end."""
-
-    kind: str
-    summary: dict[str, Any]
-    tables: list[TableOut]
-    charts: list[ChartSpec]
-    source_run: str | None = None
-    target: str | None = None

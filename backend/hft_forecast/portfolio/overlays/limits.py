@@ -7,9 +7,7 @@ from pydantic import Field, model_validator
 
 from hft_forecast.core import columns as C
 from hft_forecast.core.interfaces import (
-    ENGINE_EVENT,
     ENGINE_VECTORIZED,
-    Context,
     Overlay,
     OverlayContext,
 )
@@ -19,7 +17,7 @@ from hft_forecast.core.registry import register
 from hft_forecast.core.types import FloatArray, TargetFrame
 
 EPS = 1e-12
-BOTH_ENGINES = frozenset({ENGINE_VECTORIZED, ENGINE_EVENT})
+VECTORIZED = frozenset({ENGINE_VECTORIZED})
 
 
 class MaxWeightParams(OverlayParams):
@@ -33,7 +31,7 @@ class MaxWeightParams(OverlayParams):
     name="max_position_weight",
     version="1.0.0",
     tags=["limits"],
-    capabilities=BOTH_ENGINES,
+    capabilities=VECTORIZED,
 )
 class MaxPositionWeight(Overlay):
     """Clip each position to a maximum absolute weight (excess goes to cash)."""
@@ -45,13 +43,6 @@ class MaxPositionWeight(Overlay):
         """Clip weights."""
         cap = self.params.max_weight
         return targets.replace(values=np.clip(targets.values, -cap, cap))
-
-    def on_bar(self, ctx: Context) -> None:
-        """Clip the staged targets."""
-        staged = ctx.target_weights()
-        if staged:
-            cap = self.params.max_weight
-            ctx.set_target_weights({k: float(np.clip(v, -cap, cap)) for k, v in staged.items()})
 
 
 class GroupParams(OverlayParams):
@@ -148,9 +139,7 @@ class LeverageParams(OverlayParams):
     max_leverage: float = Field(1.0, gt=0, le=20, description="Maximum gross leverage")
 
 
-@register(
-    "overlay", name="leverage_cap", version="1.0.0", tags=["limits"], capabilities=BOTH_ENGINES
-)
+@register("overlay", name="leverage_cap", version="1.0.0", tags=["limits"], capabilities=VECTORIZED)
 class LeverageCap(Overlay):
     """Scale rows so gross leverage never exceeds a cap."""
 
@@ -160,14 +149,6 @@ class LeverageCap(Overlay):
     def apply(self, targets: TargetFrame, ctx: OverlayContext) -> TargetFrame:
         """Cap gross leverage."""
         return targets.replace(values=cap_gross(targets.filled(), self.params.max_leverage))
-
-    def on_bar(self, ctx: Context) -> None:
-        """Scale the staged targets down to the leverage cap."""
-        staged = ctx.target_weights()
-        gross = sum(abs(v) for v in staged.values())
-        if gross > self.params.max_leverage:
-            scale = self.params.max_leverage / gross
-            ctx.set_target_weights({k: v * scale for k, v in staged.items()})
 
 
 class TurnoverParams(OverlayParams):

@@ -44,25 +44,8 @@ def data_pull(
     }
 
 
-def _research(name: str) -> Callable[..., dict[str, Any]]:
-    def handler(
-        services: Any, payload: dict[str, Any], progress: Progress, cancelled: Cancelled
-    ) -> dict[str, Any]:
-        from hft_forecast.services import research
-
-        fn: Callable[..., dict[str, Any]] = getattr(research, name)
-        return fn(services, payload, progress, cancelled)
-
-    handler.__name__ = name
-    return handler
-
-
 HANDLERS: Final[dict[str, Callable[..., dict[str, Any]]]] = {
     "backtest": backtest,
     "data_pull": data_pull,
-    "sweep": _research("run_sweep"),
-    "walk_forward": _research("run_walk_forward"),
-    "monte_carlo": _research("run_monte_carlo"),
-    "sensitivity": _research("run_sensitivity"),
 }
 """Job kind -> handler."""

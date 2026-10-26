@@ -76,7 +76,6 @@ export function RunsPage() {
         header: 'Status',
         cell: (c) => <StatusBadge status={String(c.getValue())} />,
       },
-      { accessorKey: 'engine', header: 'Engine' },
       { accessorKey: 'experiment', header: 'Experiment' },
       {
         accessorKey: 'tags',

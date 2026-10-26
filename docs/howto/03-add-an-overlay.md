@@ -6,12 +6,11 @@ Template: [`templates/example_overlay.py`](../../templates/example_overlay.py)
 hftf new overlay my_overlay
 ```
 
-Overlays take proposed targets and return modified targets. They run in the order chosen in
-the Lab (drag to reorder):
+Overlays take proposed targets and return modified targets. They run in the order the run
+config lists them:
 
 ```python
 def apply(self, targets: TargetFrame, ctx: OverlayContext) -> TargetFrame: ...
-def on_bar(self, ctx: Context) -> None: ...   # optional event-engine form
 ```
 
 `OverlayContext` provides:
@@ -26,5 +25,3 @@ You don't need to write any reporting. The pipeline records what every overlay c
 (gross exposure, zero-cost return before and after, cells changed) and the Overlays tab
 shows it.
 
-The event form reads `ctx.target_weights()` and calls `ctx.set_target_weights(...)`. Declare
-`capabilities` with `engine:event` when you implement it.

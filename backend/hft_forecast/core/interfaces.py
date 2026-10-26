@@ -4,9 +4,8 @@ Plugins depend only on this module (plus ``core`` value types). All plugins are
 instantiated with a validated ``Params`` model: ``SomePlugin(params)``.
 
 Capability vocabulary (see design doc section 5.3):
-    ``engine:vectorized``, ``engine:event``, ``asset:equity``, ``asset:future``,
-    ``asset:option``, ``freq:daily``, ``freq:intraday``, ``needs:fundamentals``,
-    ``needs:options_chain``, ``needs:benchmark``, ``needs:multi_asset``, ``supports:short``.
+    ``engine:vectorized``, ``asset:equity``, ``freq:daily``, ``freq:intraday``,
+    ``freq:subminute``, ``needs:benchmark``, ``needs:multi_asset``, ``supports:short``.
 """
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Final, Protocol, runtime_checkable
+from typing import Any, ClassVar, Final
 
 import numpy as np
 import polars as pl
@@ -40,17 +39,12 @@ from hft_forecast.core.types import (
     FloatArray,
     Instrument,
     MarketData,
-    Order,
-    OrderType,
-    PortfolioState,
     TargetFrame,
     TargetKind,
     TimeArray,
-    TimeInForce,
 )
 
 ENGINE_VECTORIZED: Final = "engine:vectorized"
-ENGINE_EVENT: Final = "engine:event"
 FREQ_DAILY: Final = "freq:daily"
 FREQ_INTRADAY: Final = "freq:intraday"
 # Sub-minute bars (``Frequency.S1`` .. ``S30``); a plugin without it is rejected at config time.
@@ -146,110 +140,15 @@ class DataRequirements:
     extra: dict[str, Any] = field(default_factory=dict)
 
 
-@runtime_checkable
-class Context(Protocol):
-    """Per-bar context given to ``on_bar`` in the event engine.
-
-    Implementations must never expose data after the current bar; attempting to do so raises
-    :class:`~hft_forecast.core.errors.LookaheadError`.
-    """
-
-    @property
-    def now(self) -> np.datetime64:
-        """Timestamp of the current bar."""
-        ...
-
-    @property
-    def bar_index(self) -> int:
-        """0-based index of the current bar."""
-        ...
-
-    @property
-    def instruments(self) -> tuple[str, ...]:
-        """Instrument ids in column order."""
-        ...
-
-    @property
-    def portfolio(self) -> PortfolioState:
-        """Current portfolio state."""
-        ...
-
-    @property
-    def state(self) -> dict[str, Any]:
-        """Scratch storage that persists across bars for this plugin instance."""
-        ...
-
-    @property
-    def periods_per_year(self) -> float:
-        """Annualization factor of the bars."""
-        ...
-
-    def history(self, field_name: str, lookback: int | None = None) -> FloatArray:
-        """Panel ``(bars, instruments)`` up to and including the current bar."""
-        ...
-
-    def current(self, field_name: str) -> FloatArray:
-        """Values of a field for the current bar ``(instruments,)``."""
-        ...
-
-    def timestamps(self, lookback: int | None = None) -> TimeArray:
-        """Timestamps up to and including the current bar."""
-        ...
-
-    def value_at(self, field_name: str, bar_index: int) -> FloatArray:
-        """Values at a past bar; raises ``LookaheadError`` for a future bar."""
-        ...
-
-    def portfolio_returns(self, lookback: int | None = None) -> FloatArray:
-        """Realized portfolio returns up to the current bar."""
-        ...
-
-    def resampled(self, field_name: str, frequency: str, lookback: int | None = None) -> FloatArray:
-        """Completed bars of a coarser frequency (e.g. daily from intraday), ``(bars, N)``.
-
-        Only periods that ended before the current bar's period are included.
-        """
-        ...
-
-    def order(
-        self,
-        instrument: str,
-        quantity: float,
-        order_type: OrderType = OrderType.MARKET,
-        limit_price: float | None = None,
-        stop_price: float | None = None,
-        tif: TimeInForce = TimeInForce.GTC,
-        tag: str = "",
-    ) -> str:
-        """Submit an order. Positive quantity buys, negative sells. Returns the order id."""
-        ...
-
-    def cancel(self, order_id: str) -> None:
-        """Cancel an open order."""
-        ...
-
-    def open_orders(self) -> list[Order]:
-        """Open orders."""
-        ...
-
-    def set_target_weights(self, weights: dict[str, float]) -> None:
-        """Rebalance towards target weights (unlisted instruments go to zero)."""
-        ...
-
-    def target_weights(self) -> dict[str, float]:
-        """Target weights set so far during this bar (used by overlays)."""
-        ...
-
-
 class Strategy(Plugin):
     """Produces signals or target weights (intent), never sizing or risk decisions.
 
-    Implement :meth:`generate_targets` (vectorized, whole history), :meth:`on_bar`
-    (event-driven), or both, and declare it through ``capabilities``.
+    Implement :meth:`generate_targets`: targets for every bar, using only information up to
+    that bar.
     """
 
     Params: ClassVar[type[PluginParams]] = StrategyParams
-    capabilities: ClassVar[frozenset[str]] = frozenset({ENGINE_VECTORIZED, ENGINE_EVENT})
+    capabilities: ClassVar[frozenset[str]] = frozenset({ENGINE_VECTORIZED})
     output_kind: ClassVar[TargetKind] = TargetKind.WEIGHTS
 
     def data_requirements(self) -> DataRequirements:
@@ -264,19 +163,10 @@ class Strategy(Plugin):
         """Targets for every bar using only information up to that bar."""
         raise NotImplementedError
 
-    def on_bar(self, ctx: Context) -> None:
-        """Handle one bar in the event engine."""
-        raise NotImplementedError
-
     @classmethod
     def implements_vectorized(cls) -> bool:
         """Whether :meth:`generate_targets` is implemented."""
         return cls.generate_targets is not Strategy.generate_targets
-
-    @classmethod
-    def implements_event(cls) -> bool:
-        """Whether :meth:`on_bar` is implemented."""
-        return cls.on_bar is not Strategy.on_bar
 
 
 # --------------------------------------------------------------------------- pipeline
@@ -326,10 +216,7 @@ class OverlayContext:
 
 
 class Overlay(Plugin):
-    """Modifies proposed targets for risk control or hedging.
-
-    Implement :meth:`apply` (vectorized), :meth:`on_bar` (event), or both.
-    """
+    """Modifies proposed targets for risk control or hedging."""
 
     Params: ClassVar[type[PluginParams]] = OverlayParams
     capabilities: ClassVar[frozenset[str]] = frozenset({ENGINE_VECTORIZED})
@@ -338,19 +225,10 @@ class Overlay(Plugin):
         """Return modified targets."""
         raise NotImplementedError
 
-    def on_bar(self, ctx: Context) -> None:
-        """Adjust ``ctx.target_weights()`` in the event engine."""
-        raise NotImplementedError
-
     @classmethod
     def implements_vectorized(cls) -> bool:
         """Whether :meth:`apply` is implemented."""
         return cls.apply is not Overlay.apply
-
-    @classmethod
-    def implements_event(cls) -> bool:
-        """Whether :meth:`on_bar` is implemented."""
-        return cls.on_bar is not Overlay.on_bar
 
 
 # --------------------------------------------------------------------------- costs & fills
@@ -409,21 +287,6 @@ class CostContext:
         return np.nan_to_num(units, nan=0.0, posinf=0.0, neginf=0.0)
 
 
-@dataclass(frozen=True)
-class BarSnapshot:
-    """One instrument's bar as seen by fill and slippage models in the event engine."""
-
-    timestamp: np.datetime64
-    open: float
-    high: float
-    low: float
-    close: float
-    volume: float
-    volatility: float = float("nan")
-    spread: float = float("nan")
-    """Quoted bid-ask spread in currency at the bar end; NaN when the data has no quotes."""
-
-
 class CostModel(Plugin):
     """Commissions, fees, borrow and financing costs.
 
@@ -440,16 +303,6 @@ class CostModel(Plugin):
         """Cost at each bar as a fraction of equity ``(T, N)`` (positive = cost)."""
         return np.zeros_like(ctx.trades)
 
-    def commission(self, quantity: float, price: float, instrument: Instrument) -> float:
-        """Commission in currency for a fill of ``quantity`` units (signed) at ``price``."""
-        return 0.0
-
-    def holding_cost(
-        self, market_value: float, instrument: Instrument, year_fraction: float
-    ) -> float:
-        """Cost in currency of holding a position of ``market_value`` for ``year_fraction``."""
-        return 0.0
-
 
 class SlippageModel(Plugin):
     """Price impact and spread costs."""
@@ -461,24 +314,6 @@ class SlippageModel(Plugin):
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Slippage at each bar as a fraction of equity ``(T, N)``."""
         return np.zeros_like(ctx.trades)
-
-    def price_adjustment(self, quantity: float, price: float, bar: BarSnapshot) -> float:
-        """Adverse per-unit price adjustment (>= 0) for an order of ``quantity`` units."""
-        return 0.0
-
-
-class FillModel(Plugin):
-    """Decides when and at what price an order fills in the event engine."""
-
-    Params: ClassVar[type[PluginParams]] = CostParams
-    capabilities: ClassVar[frozenset[str]] = frozenset({ENGINE_EVENT})
-
-    @abstractmethod
-    def fill(self, order: Order, bar: BarSnapshot, max_quantity: float) -> tuple[float, float]:
-        """Return ``(price, quantity)`` filled on ``bar``; quantity 0 means no fill.
-
-        ``max_quantity`` is the unsigned cap from the volume participation limit.
-        """
 
 
 # --------------------------------------------------------------------------- analytics
@@ -605,7 +440,6 @@ BASE_FOR_KIND: Final[dict[PluginKind, type[Plugin]]] = {
     PluginKind.OVERLAY: Overlay,
     PluginKind.COST_MODEL: CostModel,
     PluginKind.SLIPPAGE_MODEL: SlippageModel,
-    PluginKind.FILL_MODEL: FillModel,
     PluginKind.METRIC: Metric,
     PluginKind.CHART: ChartBuilder,
     PluginKind.UNIVERSE: UniverseProvider,

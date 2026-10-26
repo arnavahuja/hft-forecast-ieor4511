@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from hft_forecast import __version__
 from hft_forecast.api.errors import install_error_handlers
-from hft_forecast.api.routers import compare, data, plugins, presets, research, runs, system
+from hft_forecast.api.routers import compare, data, plugins, runs, system
 from hft_forecast.api.routers import jobs as jobs_router
 from hft_forecast.core.config import Settings
 from hft_forecast.core.logging import configure_logging
@@ -71,7 +71,7 @@ def create_app(
     )
     install_error_handlers(app)
     api = APIRouter(prefix=API_PREFIX)
-    for module in (system, plugins, data, runs, compare, jobs_router, presets, research):
+    for module in (system, plugins, data, runs, compare, jobs_router):
         api.include_router(module.router)
     app.include_router(api)
     return app

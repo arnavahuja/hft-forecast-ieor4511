@@ -21,7 +21,6 @@ from hft_forecast.core.calendar import PERIODS_PER_YEAR_KEY, TradingCalendar
 from hft_forecast.core.errors import CompatibilityError, ConfigError
 from hft_forecast.core.interfaces import (
     CostModel,
-    FillModel,
     PortfolioConstructor,
     SlippageModel,
     Strategy,
@@ -34,7 +33,6 @@ from hft_forecast.core.specs import MetricValue
 from hft_forecast.core.types import DataRequest, FloatArray, MarketData, pl_times
 from hft_forecast.data.service import DataService
 from hft_forecast.engine.base import CASH_RETURNS_KEY, Engine, RunOptions
-from hft_forecast.engine.event.engine import EventEngine
 from hft_forecast.engine.pipeline import NamedOverlay, Pipeline
 from hft_forecast.engine.vectorized import VectorizedEngine
 from hft_forecast.services.compatibility import CompatibilityChecker
@@ -153,7 +151,6 @@ class BacktestRunner:
         data: Data service.
         analytics: Analytics service.
         checker: Compatibility checker.
-        engine_factories: Optional override of engine construction by name.
     """
 
     def __init__(
@@ -161,30 +158,10 @@ class BacktestRunner:
         data: DataService,
         analytics: AnalyticsService | None = None,
         checker: CompatibilityChecker | None = None,
-        engine_factories: dict[str, Callable[..., Engine]] | None = None,
     ) -> None:
         self.data = data
         self.analytics = analytics or AnalyticsService()
         self.checker = checker or CompatibilityChecker()
-        self.engine_factories = engine_factories or {}
-
-    # ---- engine construction
-
-    def _engine(
-        self,
-        config: BacktestConfig,
-        costs: list[CostModel],
-        slippage: SlippageModel | None,
-        fill: FillModel | None,
-    ) -> Engine:
-        name = config.execution.engine
-        if name in self.engine_factories:
-            return self.engine_factories[name](costs, slippage, fill)
-        if name == "vectorized":
-            return VectorizedEngine(costs, slippage)
-        if name == "event":
-            return EventEngine(costs, slippage, fill)
-        raise ConfigError(f"Unknown engine '{name}'")
 
     # ---- data
 
@@ -280,14 +257,9 @@ class BacktestRunner:
             if config.slippage
             else None
         )
-        fill: FillModel | None = (
-            _create(PluginKind.FILL_MODEL, config.fill_model, versions)
-            if config.fill_model
-            else None
-        )
         universe_ref = config.data.universe or PluginRef(name="static")
         universe: UniverseProvider = _create(PluginKind.UNIVERSE, universe_ref, versions)
-        engine = self._engine(config, costs, slippage, fill)
+        engine = VectorizedEngine(costs, slippage)
         return Components(strategy, Pipeline(constructor, overlays), engine, universe, versions)
 
     # ---- preparation
@@ -311,9 +283,6 @@ class BacktestRunner:
         universe_code = universe.request_universe()
 
         data, bench_id, refs = self._load_data(config, candidates, universe_code)
-        data, locked = self._apply_split(config, data)
-        if locked:
-            warnings.append(f"Test period locked: data truncated at {locked}")
         calendar = TradingCalendar(config.execution.calendar)
         ppy = calendar.periods_per_year(data.frequency)
         data = data.with_metadata(**{PERIODS_PER_YEAR_KEY: ppy})
@@ -349,14 +318,6 @@ class BacktestRunner:
             refs,
             warnings,
         )
-
-    @staticmethod
-    def _apply_split(config: BacktestConfig, data: MarketData) -> tuple[MarketData, str | None]:
-        split = config.split
-        if split is None or split.test_unlocked or split.validation_end is None:
-            return data, None
-        cutoff = split.validation_end
-        return data.between(None, cutoff), cutoff.isoformat()
 
     @staticmethod
     def _membership(

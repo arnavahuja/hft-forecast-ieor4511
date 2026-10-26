@@ -9,27 +9,23 @@ Template: [`templates/example_strategy.py`](../../templates/example_strategy.py)
    ```
 
 2. Edit `user_plugins/my_strategy.py`:
-   - `Params` is a pydantic model. Each field becomes a form input in the Strategy Lab
-     (`Field(default, ge=..., le=..., description=...)` sets limits and help text).
-   - Implement `generate_targets(data)` (whole history, vectorized) and/or `on_bar(ctx)`
-     (one bar at a time, event engine).
+   - `Params` is a pydantic model; `Field(default, ge=..., le=..., description=...)` sets
+     limits and help text, and the schema is what validates a run config.
+   - Implement `generate_targets(data)`: targets for the whole history, vectorized.
    - Return **intent**: target weights (`output_kind = WEIGHTS`, the default) or signals
-     (`output_kind = SIGNALS`, then pick a portfolio constructor in the Lab). Sizing, risk
+     (`output_kind = SIGNALS`, then name a portfolio constructor in the config). Sizing, risk
      limits and hedging belong in overlays.
-   - Declare `capabilities`, e.g. `{"engine:vectorized", "engine:event", "freq:daily"}`. The
-     Lab uses them to block invalid combinations.
+   - Declare `capabilities`, e.g. `{"engine:vectorized", "freq:intraday", "freq:subminute"}`.
+     A run config that does not match them is rejected before it starts.
 3. Restart `make run`, or set `HFTF_DEV_MODE=true` and the file hot-reloads on save.
-4. Open the Strategy Lab. The strategy is in the list with an auto-generated form. Click
-   **Run lookahead check** before trusting results.
+4. Run `hftf check-lookahead <config.yaml>` before trusting results.
 
 ## Rules
 
 - Row `t` of `generate_targets` may use rows `<= t` only. Use the trailing helpers in
   `hft_forecast.core.numeric` (`rolling_mean`, `rolling_std`, `ewm_mean`, `pct_change`, `shift`).
   The engine applies the execution lag, so never shift targets yourself.
-- In `on_bar`, `ctx.history(field, lookback)` ends at the current bar;
-  `ctx.value_at(field, i)` raises `LookaheadError` for future bars.
-- No global state and no I/O. In `on_bar`, keep state in `ctx.state`.
+- No global state and no I/O.
 - `warmup()` returns the bars needed before the first valid decision.
 
 ## Test it

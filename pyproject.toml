@@ -153,7 +153,6 @@ source_modules = [
     "hft_forecast.portfolio",
     "hft_forecast.data.sources",
     "hft_forecast.engine.costs",
-    "hft_forecast.engine.fills",
     "hft_forecast.analytics.metrics",
     "hft_forecast.analytics.charts",
     "hft_forecast.ml.models",

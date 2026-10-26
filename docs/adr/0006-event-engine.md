@@ -1,6 +1,6 @@
 # ADR 0006: Event-driven engine
 
-Status: accepted
+Status: superseded by [ADR 0010](0010-prune-to-the-forecast-comparison.md)
 
 ## Decision
 - Loop per bar: holding costs and cash interest over the bar (start-of-bar positions) ->

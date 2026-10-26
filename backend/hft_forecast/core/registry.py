@@ -29,7 +29,6 @@ class PluginKind(StrEnum):
     OVERLAY = "overlay"
     COST_MODEL = "cost_model"
     SLIPPAGE_MODEL = "slippage_model"
-    FILL_MODEL = "fill_model"
     METRIC = "metric"
     CHART = "chart"
     UNIVERSE = "universe"

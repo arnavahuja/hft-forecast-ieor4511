@@ -16,14 +16,12 @@ from hft_forecast.api.schemas import (
     ExperimentOut,
     JobOut,
     LabelsUpdate,
-    LookaheadOut,
     MetricsOut,
     OverlayStatsOut,
     PositionsOut,
     RunCreate,
     RunLaunchOut,
     TradesOut,
-    ValidateOut,
 )
 from hft_forecast.core.errors import ConfigError
 from hft_forecast.core.specs import ChartSpec
@@ -48,25 +46,6 @@ def _params(raw: str | None) -> dict[str, Any] | None:
     if not isinstance(parsed, dict):
         raise ConfigError("params must be a JSON object")
     return parsed
-
-
-@router.post("/validate", response_model=ValidateOut)
-def validate(body: RunCreate, request: Request) -> ValidateOut:
-    """Check a configuration for compatibility problems."""
-    report = _svc(request).validate(body.config)
-    return ValidateOut(ok=report.ok, issues=report.issues)
-
-
-@router.post("/lookahead-check", response_model=LookaheadOut)
-def lookahead_check(body: RunCreate, request: Request) -> LookaheadOut:
-    """Run the truncation lookahead check on the configured strategy and data."""
-    report = _svc(request).lookahead(body.config)
-    return LookaheadOut(
-        passed=report.passed,
-        message=report.message,
-        cut_points=report.cut_points,
-        mismatches=report.mismatches,
-    )
 
 
 @router.post("", response_model=RunLaunchOut, status_code=202)

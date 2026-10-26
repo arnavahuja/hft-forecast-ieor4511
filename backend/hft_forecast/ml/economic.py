@@ -43,10 +43,37 @@ def cost_scale_grid() -> tuple[float, ...]:
     return (0.0, 0.5, 1.0, 2.0, 4.0)
 
 
+def cost_multiple_configs(
+    config: ExperimentConfig, predictions: Path, model: str, instrument: str
+) -> list[tuple[float, BacktestConfig]]:
+    """One backtest per cost multiple, for the breakeven row of the comparison table.
+
+    The multiple scales the quoted spread the model pays, so a run at 2.0 crosses twice the
+    spread it actually saw. Feed the resulting net metric and
+    :func:`~hft_forecast.analytics.robustness.core.breakeven` the same multiples to get the
+    cost level at which the edge disappears.
+    """
+    return [
+        (
+            scale,
+            BacktestConfig(
+                name=f"{config.experiment} {model} {instrument} cost x{scale:g}",
+                data=config.data.model_copy(update={"instruments": [instrument]}),
+                strategy=_strategy(config, predictions, model),
+                execution=_execution(),
+                slippage=PluginRef(name="quoted_spread", params={"multiplier": scale}),
+                experiment=config.experiment,
+                tags=["ml", "economic", config.horizon.name, model, "breakeven"],
+                seed=config.seed,
+            ),
+        )
+        for scale in cost_scale_grid()
+    ]
+
+
 def _execution() -> ExecutionSpec:
     """Decide at the bar end, trade at the next bar end, at the mid."""
     return ExecutionSpec(
-        engine="vectorized",
         lag_bars=1,
         rebalance=RebalanceRule.ON_CHANGE,
         calendar="XNYS",

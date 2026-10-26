@@ -25,14 +25,8 @@ export function DashboardPage() {
         actions={
           <>
             <Link
-              to="/lab"
-              className="rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-canvas hover:bg-accent-strong"
-            >
-              New run
-            </Link>
-            <Link
               to="/data"
-              className="rounded-md border border-border bg-elevated px-3.5 py-2 text-sm hover:border-muted"
+              className="rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-canvas hover:bg-accent-strong"
             >
               Get data
             </Link>
@@ -58,11 +52,8 @@ export function DashboardPage() {
           ) : runs.data.length === 0 ? (
             <div className="p-4">
               <EmptyState title="No runs yet">
-                Build one in the{' '}
-                <Link to="/lab" className="text-accent">
-                  Strategy Lab
-                </Link>
-                .
+                Train a model with <code>hftf ml run</code>, then run the economic test with{' '}
+                <code>hftf ml econ</code>.
               </EmptyState>
             </div>
           ) : (

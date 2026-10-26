@@ -21,7 +21,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           echarts: ['echarts', 'echarts-for-react'],
-          forms: ['@rjsf/core', '@rjsf/utils', '@rjsf/validator-ajv8'],
           react: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', '@tanstack/react-table'],
         },
       },

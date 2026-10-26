@@ -29,10 +29,11 @@ from hft_forecast.core.specs import MetricValue
 from hft_forecast.services.result_io import META, load_result, save_result
 
 DB_FILE: Final = "hft_forecast.db"
+VECTORIZED: Final = "vectorized"
+"""The only engine; stored per run so old records keep their meaning."""
 METRICS_FILE: Final = "metrics.json"
 ML_METRICS_FILE: Final = "ml_metrics.json"
 LOG_FILE: Final = "log.txt"
-RESEARCH_FILE: Final = "research.json"
 FACTORS_FILE: Final = "factors.parquet"
 
 _SCHEMA: Final = """
@@ -67,25 +68,6 @@ CREATE TABLE IF NOT EXISTS experiments (
     name TEXT PRIMARY KEY,
     created_at TEXT NOT NULL,
     notes TEXT NOT NULL DEFAULT ''
-);
-CREATE TABLE IF NOT EXISTS presets (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    config_json TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    notes TEXT NOT NULL DEFAULT ''
-);
-CREATE TABLE IF NOT EXISTS research_trials (
-    experiment TEXT NOT NULL,
-    source_id TEXT NOT NULL,
-    params_json TEXT NOT NULL,
-    sharpe_per_period REAL
-);
-CREATE TABLE IF NOT EXISTS test_unlocks (
-    experiment TEXT NOT NULL,
-    unlocked_at TEXT NOT NULL,
-    run_id TEXT
 );
 """
 
@@ -141,19 +123,6 @@ class RunRecord(BaseModel):
     parent_id: str | None = None
     job_id: str | None = None
     kind: str = "backtest"
-
-
-class Preset(BaseModel):
-    """A saved configuration."""
-
-    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
-
-    id: str
-    name: str
-    config: dict[str, Any]
-    created_at: str
-    updated_at: str
-    notes: str = ""
 
 
 def _now() -> str:
@@ -247,7 +216,7 @@ class RunStore:
                     config.model_dump_json(),
                     config.config_hash(),
                     config.strategy.name,
-                    config.execution.engine,
+                    VECTORIZED,
                     json.dumps(config.tags),
                     config.notes,
                     config.experiment,
@@ -486,9 +455,7 @@ class RunStore:
         if status:
             clauses.append("status=?")
             params.append(status)
-        if kind == "research":
-            clauses.append("kind<>'backtest'")
-        elif kind:
+        if kind:
             clauses.append("kind=?")
             params.append(kind)
         if tag:
@@ -526,30 +493,6 @@ class RunStore:
         raw = json.loads(path.read_text())
         return {k: MetricValue.model_validate(v) for k, v in raw.items()}
 
-    # ---- research results
-
-    def complete_research(
-        self, run_id: str, payload: dict[str, Any], headline: dict[str, float | None]
-    ) -> RunRecord:
-        """Store a research result (JSON) and mark it completed."""
-        directory = self.run_dir(run_id)
-        directory.mkdir(parents=True, exist_ok=True)
-        (directory / RESEARCH_FILE).write_text(json.dumps(payload, default=str))
-        with self._connect() as con:
-            con.execute(
-                "UPDATE runs SET status=?, finished_at=?, headline_json=?, error=NULL WHERE id=?",
-                (RunStatus.COMPLETED.value, _now(), json.dumps(headline), run_id),
-            )
-        return self.get(run_id)
-
-    def research(self, run_id: str) -> dict[str, Any]:
-        """Stored research result."""
-        path = self.run_dir(run_id) / RESEARCH_FILE
-        if not path.exists():
-            raise NotFoundError(f"No research result for '{run_id}'")
-        data: dict[str, Any] = json.loads(path.read_text())
-        return data
-
     # ---- experiments and trials
 
     def experiments(self) -> list[dict[str, Any]]:
@@ -561,40 +504,23 @@ class RunStore:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def add_trials(
-        self, experiment: str, source_id: str, trials: list[tuple[dict[str, Any], float | None]]
-    ) -> None:
-        """Record research trials (e.g. sweep points) so deflated Sharpe counts them."""
-        with self._connect() as con:
-            con.executemany(
-                "INSERT INTO research_trials VALUES (?, ?, ?, ?)",
-                [(experiment, source_id, json.dumps(p, default=str), s) for p, s in trials],
-            )
-
     def count_trials(self, experiment: str) -> int:
-        """Exact number of trials (backtests plus research trials) in an experiment."""
+        """Exact number of trials (backtest and ml runs) in an experiment."""
         with self._connect() as con:
-            research = con.execute(
-                "SELECT COUNT(*) FROM research_trials WHERE experiment=?", (experiment,)
-            ).fetchone()[0]
             runs = con.execute(
                 "SELECT COUNT(*) FROM runs WHERE experiment=? AND kind IN ('backtest', 'ml')",
                 (experiment,),
             ).fetchone()[0]
-        return int(research) + int(runs)
+        return int(runs)
 
     def trials(self, experiment: str | None) -> tuple[int, list[float]]:
-        """Trial count and per-period Sharpe ratios (backtests plus research trials)."""
+        """Trial count and per-period Sharpe ratios of everything run under an experiment.
+
+        ML runs count as trials beside backtests: every evaluated configuration is one,
+        which is the whole point of trial counting.
+        """
         if not experiment:
             return 1, []
-        with self._connect() as con:
-            extra = con.execute(
-                "SELECT sharpe_per_period FROM research_trials WHERE experiment=?", (experiment,)
-            ).fetchall()
-        research = [float(r[0]) for r in extra if r[0] is not None]
-        n_research = len(extra)
-        # ML runs count as trials too: every evaluated configuration is one, which is the
-        # whole point of trial counting
         runs = [
             r
             for kind in ("backtest", "ml")
@@ -606,68 +532,7 @@ class RunStore:
             if r.status is RunStatus.COMPLETED
             and (s := r.headline.get("sharpe_per_period")) is not None
         ]
-        return max(len(runs) + n_research, 1), sharpes + research
-
-    def record_test_unlock(self, experiment: str, run_id: str | None) -> None:
-        """Record that the locked test period was unlocked."""
-        with self._connect() as con:
-            con.execute("INSERT INTO test_unlocks VALUES (?, ?, ?)", (experiment, _now(), run_id))
-
-    def test_unlocks(self, experiment: str) -> list[dict[str, Any]]:
-        """When the test period of an experiment was unlocked."""
-        with self._connect() as con:
-            rows = con.execute(
-                "SELECT * FROM test_unlocks WHERE experiment=?", (experiment,)
-            ).fetchall()
-        return [dict(r) for r in rows]
-
-    # ---- presets
-
-    def save_preset(self, name: str, config: dict[str, Any], notes: str = "") -> Preset:
-        """Create or replace a preset by name."""
-        now = _now()
-        with self._connect() as con:
-            existing = con.execute("SELECT id FROM presets WHERE name=?", (name,)).fetchone()
-            if existing:
-                con.execute(
-                    "UPDATE presets SET config_json=?, updated_at=?, notes=? WHERE id=?",
-                    (json.dumps(config), now, notes, existing["id"]),
-                )
-                preset_id = existing["id"]
-            else:
-                preset_id = uuid.uuid4().hex[:10]
-                con.execute(
-                    "INSERT INTO presets VALUES (?, ?, ?, ?, ?, ?)",
-                    (preset_id, name, json.dumps(config), now, now, notes),
-                )
-        return self.preset(preset_id)
-
-    def preset(self, preset_id: str) -> Preset:
-        """Fetch a preset."""
-        with self._connect() as con:
-            row = con.execute("SELECT * FROM presets WHERE id=?", (preset_id,)).fetchone()
-        if row is None:
-            raise NotFoundError(f"Preset '{preset_id}' not found")
-        return Preset(
-            id=row["id"],
-            name=row["name"],
-            config=json.loads(row["config_json"]),
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-            notes=row["notes"],
-        )
-
-    def presets(self) -> list[Preset]:
-        """All presets by name."""
-        with self._connect() as con:
-            ids = [r["id"] for r in con.execute("SELECT id FROM presets ORDER BY name")]
-        return [self.preset(i) for i in ids]
-
-    def delete_preset(self, preset_id: str) -> None:
-        """Delete a preset."""
-        self.preset(preset_id)
-        with self._connect() as con:
-            con.execute("DELETE FROM presets WHERE id=?", (preset_id,))
+        return max(len(runs), 1), sharpes
 
 
 def _scalars(metrics: dict[str, Any]) -> dict[str, float | None]:

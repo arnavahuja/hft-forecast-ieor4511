@@ -18,7 +18,8 @@ economically through the existing engine, by seven people working in three group
   constructors, and the drawdown/exit/hedging/option/regime overlays. `BacktestConfig` loses
   `factors`, and `DataSpec` loses `options_chain`, `extra_datasets` and `splices`.
   `AUX_FIELDS` becomes empty (it only ever carried option Greeks).
-- **Keep** the data cache/catalog/validation spine, both engines, the lookahead check, the
+- **Keep** the data cache/catalog/validation spine, both engines (the event engine was
+  removed later by ADR 0010), the lookahead check, the
   analytics and research services, the job/run stores, the API and the front end. The front
   end stays view-only; no new pages.
 - **Keep CRSP daily and the point-in-time `sp500` universe.** They are how the team picks the

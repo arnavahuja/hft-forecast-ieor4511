@@ -1,40 +1,58 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
-/** Configure a synthetic-data run in the Strategy Lab and launch it; returns the run URL. */
-async function buildAndRun(page: Page, strategy: string, name: string): Promise<string> {
-  await page.goto('/lab')
-  await page.getByRole('button', { name: 'Reset' }).click()
-  await page.getByLabel('Source').selectOption('synthetic')
-  await page.getByLabel('Instruments (comma separated)').fill('AAA, BBB, CCC')
-  await page.getByLabel('Start', { exact: true }).fill('2016-01-01')
-  await page.getByLabel('End', { exact: true }).fill('2020-12-31')
-  await page.getByLabel('Strategy', { exact: true }).selectOption(strategy)
-  await page.getByLabel('Benchmark').fill('MKT')
-  await page.getByLabel('Name', { exact: true }).fill(name)
-  const run = page.getByRole('button', { name: 'Run backtest' })
-  await expect(run).toBeEnabled()
-  await run.click()
-  const open = page.getByRole('link', { name: 'Open run →' })
-  await expect(open).toBeVisible({ timeout: 60_000 })
-  await open.click()
-  await expect(page).toHaveURL(/\/runs\/[0-9a-f]+$/)
-  return page.url()
+const API = '/api/v1'
+
+/** The economic test and `hftf run` both post this shape; the UI only ever reads runs. */
+function config(name: string, costBps: number) {
+  return {
+    name,
+    data: {
+      source: 'synthetic',
+      dataset: 'gbm',
+      instruments: ['AAA', 'BBB', 'CCC'],
+      start: '2016-01-01',
+      end: '2020-12-31',
+    },
+    strategy: { name: 'buy_and_hold' },
+    costs: [{ name: 'bps_notional', params: { bps: costBps } }],
+    benchmark: 'MKT',
+    experiment: 'e2e',
+  }
 }
 
-test('build a run, see results, compare two runs', async ({ page }) => {
+/** Launch a run through the API and wait for it to finish; returns the run id. */
+async function launch(request: APIRequestContext, name: string, costBps: number): Promise<string> {
+  const response = await request.post(`${API}/runs`, { data: { config: config(name, costBps) } })
+  expect(response.ok()).toBeTruthy()
+  const { run } = (await response.json()) as { run: { id: string } }
+  await expect
+    .poll(
+      async () => {
+        const got = await request.get(`${API}/runs/${run.id}`)
+        return ((await got.json()) as { status: string }).status
+      },
+      { timeout: 60_000 },
+    )
+    .toBe('completed')
+  return run.id
+}
+
+test('see a run, its charts and a comparison of two runs', async ({ page, request }) => {
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
 
-  await buildAndRun(page, 'sma_crossover', 'e2e sma')
+  const first = await launch(request, 'e2e hold', 2)
+  await launch(request, 'e2e hold cheap', 0)
+
+  await page.goto(`/runs/${first}`)
   await expect(page.getByText('Equity curve', { exact: true })).toBeVisible()
   await expect(page.getByText('Sharpe', { exact: true }).first()).toBeVisible()
   await expect(page.locator('canvas').first()).toBeVisible()
   await page.getByRole('tab', { name: 'Trades' }).click()
   await expect(page.getByText(/^Trades \(\d+\)$/)).toBeVisible()
 
-  await buildAndRun(page, 'buy_and_hold', 'e2e hold')
-
   await page.goto('/runs')
+  await expect(page.getByRole('link', { name: /e2e hold cheap/ })).toBeVisible()
   await page.getByLabel('Select all').check()
   await page.getByRole('button', { name: 'Compare' }).click()
   await expect(page).toHaveURL(/\/compare$/)
@@ -43,6 +61,13 @@ test('build a run, see results, compare two runs', async ({ page }) => {
   await expect(page.getByText('Return correlation', { exact: true })).toBeVisible()
 
   expect(errors).toEqual([])
+})
+
+test('the data page lists the catalog and offers an import', async ({ page }) => {
+  await page.goto('/data')
+  await expect(page.getByRole('heading', { name: 'Data' })).toBeVisible()
+  await expect(page.getByText('Import a local file (CSV, Parquet, Excel, Feather)')).toBeVisible()
+  await expect(page.getByLabel('Book levels to import')).toHaveCount(0) // only after a preview
 })
 
 test('theme contains no purple', async ({ page }) => {
@@ -73,19 +98,4 @@ test('theme contains no purple', async ({ page }) => {
     return hue >= 250 && hue <= 330
   })
   expect(purple).toEqual([])
-})
-
-test('research: parameter sweep from the lab draft', async ({ page }) => {
-  await page.goto('/lab')
-  await page.getByRole('button', { name: 'Reset' }).click()
-  await page.getByLabel('Source').selectOption('synthetic')
-  await page.getByLabel('Instruments (comma separated)').fill('AAA, BBB')
-  await page.getByLabel('Benchmark').fill('MKT')
-  await page.goto('/research')
-  await page.getByLabel(/^fast/).fill('10, 20')
-  await page.getByLabel(/^slow/).fill('50, 100')
-  await page.getByRole('button', { name: 'Run', exact: true }).click()
-  await page.getByRole('button', { name: 'View result' }).click({ timeout: 60_000 })
-  await expect(page.getByText('Trials (best first)')).toBeVisible()
-  await expect(page.getByText(/by fast and slow/)).toBeVisible()
 })

@@ -7,14 +7,14 @@ from typing import ClassVar
 import numpy as np
 from pydantic import BaseModel, Field
 
-from hft_forecast.core.interfaces import ENGINE_EVENT, ENGINE_VECTORIZED, CostContext, CostModel
+from hft_forecast.core.interfaces import ENGINE_VECTORIZED, CostContext, CostModel
 from hft_forecast.core.params import CostParams
 from hft_forecast.core.registry import register
 from hft_forecast.core.results import COST_COMMISSION, COST_FEES
-from hft_forecast.core.types import AssetClass, FloatArray, Instrument
+from hft_forecast.core.types import AssetClass, FloatArray
 
 BPS = 1e-4
-BOTH_ENGINES = frozenset({ENGINE_VECTORIZED, ENGINE_EVENT})
+VECTORIZED = frozenset({ENGINE_VECTORIZED})
 
 
 def _per_equity(currency: FloatArray, equity: FloatArray) -> FloatArray:
@@ -32,7 +32,7 @@ class ZeroCost(CostModel):
     """No costs at all (useful for parity tests and upper bounds)."""
 
     Params = ZeroParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED
 
 
 class FixedParams(CostParams):
@@ -47,17 +47,13 @@ class FixedPerTrade(CostModel):
 
     Params = FixedParams
     params: FixedParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED
     category: ClassVar[str] = COST_COMMISSION
 
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Fee where a trade happens."""
         traded = (np.abs(ctx.trades) > 0).astype(np.float64) * self.params.fee
         return _per_equity(traded, ctx.equity)
-
-    def commission(self, quantity: float, price: float, instrument: Instrument) -> float:
-        """Fixed fee."""
-        return self.params.fee if quantity else 0.0
 
 
 class PerShareParams(CostParams):
@@ -74,7 +70,7 @@ class PerShare(CostModel):
 
     Params = PerShareParams
     params: PerShareParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED
     category: ClassVar[str] = COST_COMMISSION
 
     def _fee(self, units: FloatArray, notional: FloatArray) -> FloatArray:
@@ -89,12 +85,6 @@ class PerShare(CostModel):
         notional = np.abs(ctx.trades) * ctx.equity[:, None]
         return _per_equity(self._fee(units, notional), ctx.equity)
 
-    def commission(self, quantity: float, price: float, instrument: Instrument) -> float:
-        """Per-share fee for one fill."""
-        units = np.array([abs(quantity)])
-        notional = units * price * instrument.multiplier
-        return float(self._fee(units, notional)[0])
-
 
 class BpsParams(CostParams):
     """Basis points of notional."""
@@ -108,16 +98,12 @@ class BpsNotional(CostModel):
 
     Params = BpsParams
     params: BpsParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED
     category: ClassVar[str] = COST_COMMISSION
 
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Bps x |traded weight|."""
         return np.abs(ctx.trades) * self.params.bps * BPS
-
-    def commission(self, quantity: float, price: float, instrument: Instrument) -> float:
-        """Bps x notional."""
-        return abs(quantity) * price * instrument.multiplier * self.params.bps * BPS
 
 
 class Tier(BaseModel):
@@ -147,7 +133,7 @@ class Tiered(CostModel):
 
     Params = TieredParams
     params: TieredParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED
     category: ClassVar[str] = COST_COMMISSION
 
     def _fee(self, units: FloatArray) -> FloatArray:
@@ -162,10 +148,6 @@ class Tiered(CostModel):
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Tiered fee on traded units."""
         return _per_equity(self._fee(ctx.traded_units()), ctx.equity)
-
-    def commission(self, quantity: float, price: float, instrument: Instrument) -> float:
-        """Tiered fee for one fill."""
-        return float(self._fee(np.array([abs(quantity)]))[0])
 
 
 class ContractParams(CostParams):
@@ -185,18 +167,12 @@ class FuturesPerContract(CostModel):
 
     Params = ContractParams
     params: ContractParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES | {"asset:future"}
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED | {"asset:future"}
     category: ClassVar[str] = COST_FEES
 
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Fee per contract on futures columns."""
         return _contract_fee(ctx, self.params.per_contract, AssetClass.FUTURE)
-
-    def commission(self, quantity: float, price: float, instrument: Instrument) -> float:
-        """Fee per contract."""
-        if instrument.asset_class is not AssetClass.FUTURE:
-            return 0.0
-        return abs(quantity) * self.params.per_contract
 
 
 class OptionContractParams(CostParams):
@@ -211,15 +187,9 @@ class OptionsPerContract(CostModel):
 
     Params = OptionContractParams
     params: OptionContractParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES | {"asset:option"}
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED | {"asset:option"}
     category: ClassVar[str] = COST_FEES
 
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Fee per contract on option columns."""
         return _contract_fee(ctx, self.params.per_contract, AssetClass.OPTION)
-
-    def commission(self, quantity: float, price: float, instrument: Instrument) -> float:
-        """Fee per contract."""
-        if instrument.asset_class is not AssetClass.OPTION:
-            return 0.0
-        return abs(quantity) * self.params.per_contract

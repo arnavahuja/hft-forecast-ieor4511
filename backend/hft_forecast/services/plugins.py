@@ -25,7 +25,6 @@ BUILTIN_PACKAGES: Final = [
     "hft_forecast.portfolio.construction",
     "hft_forecast.portfolio.overlays",
     "hft_forecast.engine.costs",
-    "hft_forecast.engine.fills",
     "hft_forecast.analytics.metrics",
     "hft_forecast.analytics.charts",
 ]
@@ -35,7 +34,7 @@ def describe_spec(spec: PluginSpec[Any]) -> dict[str, Any]:
     """JSON-serializable description of a plugin (used by the API and CLI)."""
     cls = spec.cls
     implements: list[str] = []
-    for flag, label in (("implements_vectorized", "vectorized"), ("implements_event", "event")):
+    for flag, label in (("implements_vectorized", "vectorized"),):
         fn = getattr(cls, flag, None)
         if callable(fn) and fn():
             implements.append(label)

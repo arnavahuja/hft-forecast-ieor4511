@@ -13,6 +13,7 @@ import {
   useRunPositions,
   useRunTrades,
   useUpdateRun,
+  type BacktestConfig,
   type ChartInfo,
   type Window,
 } from '@/api/hooks'
@@ -41,9 +42,7 @@ import {
   signClass,
   type NumberFormat,
 } from '@/lib/format'
-import { configToDraft } from '@/lib/config'
 import { useCompareStore } from '@/store/compare'
-import { useLabStore } from '@/store/lab'
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -397,7 +396,6 @@ export function RunDetailPage() {
   const clone = useCloneRun()
   const toggleCompare = useCompareStore((s) => s.toggle)
   const inCompare = useCompareStore((s) => s.selected.includes(runId))
-  const replaceDraft = useLabStore((s) => s.replace)
   const onZoom = useCallback(
     (w: ZoomWindow | null) => setWindow(w ? { start: w.start, end: w.end } : {}),
     [],
@@ -406,7 +404,7 @@ export function RunDetailPage() {
   if (run.isPending) return <Skeleton height={400} />
   if (run.isError) return <ErrorState error={run.error} onRetry={() => void run.refetch()} />
   const r = run.data
-  const config = r.config as Parameters<typeof configToDraft>[0]
+  const config = r.config as unknown as BacktestConfig
   const values = metrics.data?.values ?? {}
   const tabCharts = chartsForTab(tab, charts.data ?? [])
   const group = `run-${runId}`
@@ -433,14 +431,6 @@ export function RunDetailPage() {
             )}
             <Button onClick={() => toggleCompare(runId)}>
               {inCompare ? 'Remove from compare' : 'Add to compare'}
-            </Button>
-            <Button
-              onClick={() => {
-                replaceDraft(configToDraft(config))
-                navigate('/lab')
-              }}
-            >
-              Clone to Lab
             </Button>
             <Button
               loading={clone.isPending}
