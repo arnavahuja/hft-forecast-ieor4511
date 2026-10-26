@@ -27,3 +27,6 @@ frontend/playwright-report/
 .DS_Store
 .idea/
 .vscode/
+
+# papers
+papers/
