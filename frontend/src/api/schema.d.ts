@@ -368,46 +368,6 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/api/v1/runs/validate': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Validate
-     * @description Check a configuration for compatibility problems.
-     */
-    post: operations['validate_api_v1_runs_validate_post']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/runs/lookahead-check': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Lookahead Check
-     * @description Run the truncation lookahead check on the configured strategy and data.
-     */
-    post: operations['lookahead_check_api_v1_runs_lookahead_check_post']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
   '/api/v1/runs': {
     parameters: {
       query?: never
@@ -840,218 +800,6 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/api/v1/presets': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List Presets
-     * @description All presets.
-     */
-    get: operations['list_presets_api_v1_presets_get']
-    put?: never
-    /**
-     * Save Preset
-     * @description Create or replace a preset (the config is validated first).
-     */
-    post: operations['save_preset_api_v1_presets_post']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/presets/{preset_id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Get Preset
-     * @description One preset.
-     */
-    get: operations['get_preset_api_v1_presets__preset_id__get']
-    /**
-     * Update Preset
-     * @description Update a preset (renames allowed).
-     */
-    put: operations['update_preset_api_v1_presets__preset_id__put']
-    post?: never
-    /**
-     * Delete Preset
-     * @description Delete a preset.
-     */
-    delete: operations['delete_preset_api_v1_presets__preset_id__delete']
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/research/sweep': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Sweep
-     * @description Grid or random parameter sweep (background job).
-     */
-    post: operations['sweep_api_v1_research_sweep_post']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/research/walk-forward': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Walk Forward
-     * @description Walk-forward optimization (background job).
-     */
-    post: operations['walk_forward_api_v1_research_walk_forward_post']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/research/monte-carlo': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Monte Carlo
-     * @description Monte Carlo of a stored run (background job).
-     */
-    post: operations['monte_carlo_api_v1_research_monte_carlo_post']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/research/sensitivity': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Sensitivity
-     * @description Cost, delay or capacity sensitivity (background job).
-     */
-    post: operations['sensitivity_api_v1_research_sensitivity_post']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/research': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List Research
-     * @description Stored research results, newest first.
-     */
-    get: operations['list_research_api_v1_research_get']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/research/regimes/{run_id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Regimes
-     * @description Metrics by year, market trend and volatility regime for a run.
-     */
-    get: operations['regimes_api_v1_research_regimes__run_id__get']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/research/unlock-test/{run_id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Unlock Test
-     * @description Return the run's config with the test period unlocked (the unlock is recorded).
-     */
-    post: operations['unlock_test_api_v1_research_unlock_test__run_id__post']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/research/{run_id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Get Research
-     * @description A stored research result.
-     */
-    get: operations['get_research_api_v1_research__run_id__get']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -1132,7 +880,6 @@ export interface components {
       /** Costs */
       costs?: components['schemas']['PluginRef'][]
       slippage?: components['schemas']['PluginRef'] | null
-      fill_model?: components['schemas']['PluginRef'] | null
       execution?: components['schemas']['ExecutionSpec']
       /** Benchmark */
       benchmark?: string | null
@@ -1151,7 +898,6 @@ export interface components {
        * @default 42
        */
       seed: number
-      split?: components['schemas']['ResearchSplit'] | null
       /** Tags */
       tags?: string[]
       /**
@@ -1180,7 +926,6 @@ export interface components {
       /** Costs */
       costs?: components['schemas']['PluginRef'][]
       slippage?: components['schemas']['PluginRef'] | null
-      fill_model?: components['schemas']['PluginRef'] | null
       execution?: components['schemas']['ExecutionSpec']
       /** Benchmark */
       benchmark?: string | null
@@ -1199,7 +944,6 @@ export interface components {
        * @default 42
        */
       seed: number
-      split?: components['schemas']['ResearchSplit'] | null
       /** Tags */
       tags?: string[]
       /**
@@ -1472,17 +1216,6 @@ export interface components {
       strategy: string
     }
     /**
-     * CompatibilityIssue
-     * @description One problem with a configuration.
-     */
-    CompatibilityIssue: {
-      level: components['schemas']['IssueLevel']
-      /** Field */
-      field: string
-      /** Message */
-      message: string
-    }
-    /**
      * DataSourceOut
      * @description A data source with its datasets.
      */
@@ -1644,23 +1377,15 @@ export interface components {
      * @description Engine and execution settings.
      *
      *     Attributes:
-     *         engine: Engine name (``vectorized`` or ``event``).
      *         lag_bars: Bars between the decision bar and the trade bar. Must be >= 1 so a decision
      *             made at the close of ``t`` can never trade at that same close.
      *         price: Trade at the close or the open of the trade bar.
      *         rebalance: Rebalance schedule.
      *         rebalance_every_n: Bars between rebalances for ``every_n``.
      *         cash_rate: Annual interest earned on positive cash (and paid on negative cash).
-     *         max_participation: Max fraction of bar volume an order may take (event engine).
-     *         latency_bars: Extra bars between order submission and eligibility (event engine).
      *         calendar: Exchange calendar code used for annualization.
      */
     ExecutionSpec: {
-      /**
-       * Engine
-       * @default vectorized
-       */
-      engine: string
       /**
        * Lag Bars
        * @default 1
@@ -1680,16 +1405,6 @@ export interface components {
        * @default 0
        */
       cash_rate: number
-      /**
-       * Max Participation
-       * @default 1
-       */
-      max_participation: number
-      /**
-       * Latency Bars
-       * @default 0
-       */
-      latency_bars: number
       /**
        * Calendar
        * @default XNYS
@@ -1729,9 +1444,13 @@ export interface components {
      *         timestamp: Source column with dates/times.
      *         symbol: Source column with instrument ids (``None`` = single-instrument file).
      *         fixed_symbol: Instrument id to use when ``symbol`` is ``None``.
-     *         columns: Canonical field -> source column (open, high, low, close, volume, ...).
+     *         columns: Canonical field -> source column (open, high, low, close, bid, ask, ...).
+     *         book_levels: Depth of the order book to import (0 for level-1 or OHLCV files).
+     *         book_columns: Canonical book column (``bid_px_1``, ``bid_sz_1``, ...) -> source column.
      *         extra: Extra source columns to keep as fields (renamed to snake_case).
      *         frequency: Bar frequency.
+     *         bar_label: Whether the file's timestamps sit at the bar ``end`` or ``start``; a
+     *             start-labelled intraday file is shifted to the end convention on import.
      *         timezone: Timezone of naive timestamps in the file.
      *         datetime_format: Optional ``strptime`` format.
      *         adjustment: Whether prices are raw, split-adjusted or total-return adjusted.
@@ -1748,10 +1467,24 @@ export interface components {
       columns?: {
         [key: string]: string
       }
+      /**
+       * Book Levels
+       * @default 0
+       */
+      book_levels: number
+      /** Book Columns */
+      book_columns?: {
+        [key: string]: string
+      }
       /** Extra */
       extra?: string[]
       /** @default 1d */
       frequency: components['schemas']['Frequency']
+      /**
+       * Bar Label
+       * @default end
+       */
+      bar_label: string
       /**
        * Timezone
        * @default UTC
@@ -1813,12 +1546,6 @@ export interface components {
       /** Exchange */
       exchange: string | null
     }
-    /**
-     * IssueLevel
-     * @description Severity of a compatibility issue.
-     * @enum {string}
-     */
-    IssueLevel: 'error' | 'warning'
     /**
      * JobDetailOut
      * @description A job with its log lines.
@@ -1896,20 +1623,6 @@ export interface components {
       experiment?: string | null
       /** Archived */
       archived?: boolean | null
-    }
-    /**
-     * LookaheadOut
-     * @description Lookahead check result.
-     */
-    LookaheadOut: {
-      /** Passed */
-      passed: boolean
-      /** Message */
-      message: string
-      /** Cut Points */
-      cut_points: string[]
-      /** Mismatches */
-      mismatches: Record<string, unknown>[]
     }
     /**
      * MetricDescriptor
@@ -1998,37 +1711,6 @@ export interface components {
       }
     }
     /**
-     * MonteCarloRequest
-     * @description Monte Carlo of a stored run.
-     */
-    MonteCarloRequest: {
-      /** Run Id */
-      run_id: string
-      /**
-       * Method
-       * @default bootstrap
-       * @enum {string}
-       */
-      method: 'bootstrap' | 'trades'
-      /**
-       * N Paths
-       * @default 1000
-       */
-      n_paths: number
-      /**
-       * Mean Block
-       * @default 5
-       */
-      mean_block: number
-      /** Horizon */
-      horizon?: number | null
-      /**
-       * Seed
-       * @default 7
-       */
-      seed: number
-    }
-    /**
      * OverlayStatsOut
      * @description What one overlay changed.
      */
@@ -2094,7 +1776,6 @@ export interface components {
       | 'overlay'
       | 'cost_model'
       | 'slippage_model'
-      | 'fill_model'
       | 'metric'
       | 'chart'
       | 'universe'
@@ -2149,42 +1830,6 @@ export interface components {
       equity: number
       /** Rows */
       rows: Record<string, unknown>[]
-    }
-    /**
-     * Preset
-     * @description A saved configuration.
-     */
-    Preset: {
-      /** Id */
-      id: string
-      /** Name */
-      name: string
-      /** Config */
-      config: Record<string, unknown>
-      /** Created At */
-      created_at: string
-      /** Updated At */
-      updated_at: string
-      /**
-       * Notes
-       * @default
-       */
-      notes: string
-    }
-    /**
-     * PresetIn
-     * @description Create or update a preset.
-     */
-    PresetIn: {
-      /** Name */
-      name: string
-      /** Config */
-      config: Record<string, unknown>
-      /**
-       * Notes
-       * @default
-       */
-      notes: string
     }
     /**
      * PullRequest
@@ -2258,21 +1903,6 @@ export interface components {
       end: string | null
       /** Issues */
       issues: components['schemas']['QualityIssue'][]
-    }
-    /**
-     * RandomSpace
-     * @description Random search space.
-     */
-    RandomSpace: {
-      /** Space */
-      space: {
-        [key: string]: Record<string, unknown>
-      }
-      /**
-       * N
-       * @default 50
-       */
-      n: number
     }
     /**
      * RebalanceRule
@@ -2354,39 +1984,6 @@ export interface components {
        * Format: date
        */
       end: string
-    }
-    /**
-     * ResearchResultOut
-     * @description A research result rendered generically by the front end.
-     */
-    ResearchResultOut: {
-      /** Kind */
-      kind: string
-      /** Summary */
-      summary: Record<string, unknown>
-      /** Tables */
-      tables: components['schemas']['TableOut'][]
-      /** Charts */
-      charts: components['schemas']['ChartSpec'][]
-      /** Source Run */
-      source_run: string | null
-      /** Target */
-      target: string | null
-    }
-    /**
-     * ResearchSplit
-     * @description Train/validation/test split. The test period is locked until explicitly unlocked.
-     */
-    ResearchSplit: {
-      /** Train End */
-      train_end?: string | null
-      /** Validation End */
-      validation_end?: string | null
-      /**
-       * Test Unlocked
-       * @default false
-       */
-      test_unlocked: boolean
     }
     /**
      * RunCreate
@@ -2479,25 +2076,6 @@ export interface components {
      */
     RunStatus: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
     /**
-     * SensitivityRequest
-     * @description Cost, delay or capacity sensitivity.
-     */
-    SensitivityRequest: {
-      config: components['schemas']['BacktestConfig-Input']
-      /**
-       * Kind
-       * @default cost
-       * @enum {string}
-       */
-      kind: 'cost' | 'delay' | 'capacity'
-      /** Multiples */
-      multiples?: number[] | null
-      /** Delays */
-      delays?: number[] | null
-      /** Capitals */
-      capitals?: number[] | null
-    }
-    /**
      * SeriesRole
      * @description Semantic role of a series, mapped to theme colors by the front end.
      * @enum {string}
@@ -2534,54 +2112,6 @@ export interface components {
      */
     Severity: 'info' | 'warning' | 'error'
     /**
-     * SweepRequest
-     * @description Parameter sweep.
-     */
-    SweepRequest: {
-      config: components['schemas']['BacktestConfig-Input']
-      /**
-       * Target
-       * @default strategy
-       */
-      target: string
-      /** Grid */
-      grid?: {
-        [key: string]: unknown[]
-      } | null
-      random?: components['schemas']['RandomSpace'] | null
-      /**
-       * Metric
-       * @default sharpe
-       */
-      metric: string
-      /** Seed */
-      seed?: number | null
-    }
-    /**
-     * TableColumnOut
-     * @description A column of a research table.
-     */
-    TableColumnOut: {
-      /** Key */
-      key: string
-      /** Label */
-      label: string
-      /** Format */
-      format: string | null
-    }
-    /**
-     * TableOut
-     * @description A generic table.
-     */
-    TableOut: {
-      /** Title */
-      title: string
-      /** Columns */
-      columns: components['schemas']['TableColumnOut'][]
-      /** Rows */
-      rows: Record<string, unknown>[]
-    }
-    /**
      * TradesOut
      * @description Page of trades.
      */
@@ -2591,16 +2121,6 @@ export interface components {
       /** Rows */
       rows: Record<string, unknown>[]
     }
-    /**
-     * ValidateOut
-     * @description Compatibility check result.
-     */
-    ValidateOut: {
-      /** Ok */
-      ok: boolean
-      /** Issues */
-      issues: components['schemas']['CompatibilityIssue'][]
-    }
     /** ValidationError */
     ValidationError: {
       /** Location */
@@ -2609,36 +2129,6 @@ export interface components {
       msg: string
       /** Error Type */
       type: string
-    }
-    /**
-     * WalkForwardRequest
-     * @description Walk-forward optimization.
-     */
-    WalkForwardRequest: {
-      config: components['schemas']['BacktestConfig-Input']
-      /**
-       * Target
-       * @default strategy
-       */
-      target: string
-      /** Grid */
-      grid: {
-        [key: string]: unknown[]
-      }
-      /** Train Bars */
-      train_bars?: number | null
-      /** Test Bars */
-      test_bars?: number | null
-      /**
-       * Anchored
-       * @default false
-       */
-      anchored: boolean
-      /**
-       * Metric
-       * @default sharpe
-       */
-      metric: string
     }
     /**
      * WrdsTestOut
@@ -3180,72 +2670,6 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['InstrumentOut'][]
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  validate_api_v1_runs_validate_post: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['RunCreate']
-      }
-    }
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ValidateOut']
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  lookahead_check_api_v1_runs_lookahead_check_post: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['RunCreate']
-      }
-    }
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['LookaheadOut']
         }
       }
       /** @description Validation Error */
@@ -3996,399 +3420,6 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['JobOut']
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  list_presets_api_v1_presets_get: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['Preset'][]
-        }
-      }
-    }
-  }
-  save_preset_api_v1_presets_post: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['PresetIn']
-      }
-    }
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['Preset']
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  get_preset_api_v1_presets__preset_id__get: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        preset_id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['Preset']
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  update_preset_api_v1_presets__preset_id__put: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        preset_id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['PresetIn']
-      }
-    }
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['Preset']
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  delete_preset_api_v1_presets__preset_id__delete: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        preset_id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  sweep_api_v1_research_sweep_post: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['SweepRequest']
-      }
-    }
-    responses: {
-      /** @description Successful Response */
-      202: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['JobOut']
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  walk_forward_api_v1_research_walk_forward_post: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['WalkForwardRequest']
-      }
-    }
-    responses: {
-      /** @description Successful Response */
-      202: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['JobOut']
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  monte_carlo_api_v1_research_monte_carlo_post: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['MonteCarloRequest']
-      }
-    }
-    responses: {
-      /** @description Successful Response */
-      202: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['JobOut']
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  sensitivity_api_v1_research_sensitivity_post: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['SensitivityRequest']
-      }
-    }
-    responses: {
-      /** @description Successful Response */
-      202: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['JobOut']
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  list_research_api_v1_research_get: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['RunRecord'][]
-        }
-      }
-    }
-  }
-  regimes_api_v1_research_regimes__run_id__get: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        run_id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ResearchResultOut']
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  unlock_test_api_v1_research_unlock_test__run_id__post: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        run_id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': Record<string, unknown>
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['HTTPValidationError']
-        }
-      }
-    }
-  }
-  get_research_api_v1_research__run_id__get: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        run_id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ResearchResultOut']
         }
       }
       /** @description Validation Error */

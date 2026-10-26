@@ -16,6 +16,8 @@ from hft_forecast.ml.economic import (
     COST_VARIANTS,
     PRIMARY_VARIANT,
     RETURN_COLUMN,
+    cost_multiple_configs,
+    cost_scale_grid,
     cross_sectional_config,
     per_name_configs,
     pooled_returns,
@@ -102,6 +104,17 @@ def test_the_cross_sectional_config_uses_a_constructor(experiment, predictions):
     assert config.constructor is not None and config.constructor.name == "quantile"
     assert config.strategy.params["output_kind"] == "signals"
     assert PRIMARY_VARIANT in COST_VARIANTS
+
+
+def test_the_cost_multiples_only_move_the_spread_paid(experiment, predictions):
+    configs = cost_multiple_configs(experiment, predictions, "logit_ridge@1.0.0", "AAA")
+    assert [scale for scale, _ in configs] == list(cost_scale_grid())
+    multipliers = [c.slippage.params["multiplier"] for _, c in configs if c.slippage]
+    assert multipliers == list(cost_scale_grid())
+    assert {tuple(c.data.instruments) for _, c in configs} == {("AAA",)}
+    assert {c.strategy.model_dump_json() for _, c in configs} == {
+        configs[0][1].strategy.model_dump_json()
+    }
 
 
 def test_an_unknown_variant_is_rejected(experiment, predictions):

@@ -759,90 +759,6 @@
         }
       }
     },
-    "/api/v1/runs/validate": {
-      "post": {
-        "tags": [
-          "runs"
-        ],
-        "summary": "Validate",
-        "description": "Check a configuration for compatibility problems.",
-        "operationId": "validate_api_v1_runs_validate_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RunCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidateOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/runs/lookahead-check": {
-      "post": {
-        "tags": [
-          "runs"
-        ],
-        "summary": "Lookahead Check",
-        "description": "Run the truncation lookahead check on the configured strategy and data.",
-        "operationId": "lookahead_check_api_v1_runs_lookahead_check_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RunCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LookaheadOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/runs": {
       "post": {
         "tags": [
@@ -2082,524 +1998,6 @@
           }
         }
       }
-    },
-    "/api/v1/presets": {
-      "get": {
-        "tags": [
-          "presets"
-        ],
-        "summary": "List Presets",
-        "description": "All presets.",
-        "operationId": "list_presets_api_v1_presets_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/Preset"
-                  },
-                  "type": "array",
-                  "title": "Response List Presets Api V1 Presets Get"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "presets"
-        ],
-        "summary": "Save Preset",
-        "description": "Create or replace a preset (the config is validated first).",
-        "operationId": "save_preset_api_v1_presets_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PresetIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Preset"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/presets/{preset_id}": {
-      "get": {
-        "tags": [
-          "presets"
-        ],
-        "summary": "Get Preset",
-        "description": "One preset.",
-        "operationId": "get_preset_api_v1_presets__preset_id__get",
-        "parameters": [
-          {
-            "name": "preset_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Preset Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Preset"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "presets"
-        ],
-        "summary": "Update Preset",
-        "description": "Update a preset (renames allowed).",
-        "operationId": "update_preset_api_v1_presets__preset_id__put",
-        "parameters": [
-          {
-            "name": "preset_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Preset Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PresetIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Preset"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "presets"
-        ],
-        "summary": "Delete Preset",
-        "description": "Delete a preset.",
-        "operationId": "delete_preset_api_v1_presets__preset_id__delete",
-        "parameters": [
-          {
-            "name": "preset_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Preset Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/research/sweep": {
-      "post": {
-        "tags": [
-          "research"
-        ],
-        "summary": "Sweep",
-        "description": "Grid or random parameter sweep (background job).",
-        "operationId": "sweep_api_v1_research_sweep_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SweepRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/research/walk-forward": {
-      "post": {
-        "tags": [
-          "research"
-        ],
-        "summary": "Walk Forward",
-        "description": "Walk-forward optimization (background job).",
-        "operationId": "walk_forward_api_v1_research_walk_forward_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WalkForwardRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/research/monte-carlo": {
-      "post": {
-        "tags": [
-          "research"
-        ],
-        "summary": "Monte Carlo",
-        "description": "Monte Carlo of a stored run (background job).",
-        "operationId": "monte_carlo_api_v1_research_monte_carlo_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MonteCarloRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/research/sensitivity": {
-      "post": {
-        "tags": [
-          "research"
-        ],
-        "summary": "Sensitivity",
-        "description": "Cost, delay or capacity sensitivity (background job).",
-        "operationId": "sensitivity_api_v1_research_sensitivity_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SensitivityRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/research": {
-      "get": {
-        "tags": [
-          "research"
-        ],
-        "summary": "List Research",
-        "description": "Stored research results, newest first.",
-        "operationId": "list_research_api_v1_research_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/RunRecord"
-                  },
-                  "type": "array",
-                  "title": "Response List Research Api V1 Research Get"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/research/regimes/{run_id}": {
-      "get": {
-        "tags": [
-          "research"
-        ],
-        "summary": "Regimes",
-        "description": "Metrics by year, market trend and volatility regime for a run.",
-        "operationId": "regimes_api_v1_research_regimes__run_id__get",
-        "parameters": [
-          {
-            "name": "run_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Run Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResearchResultOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/research/unlock-test/{run_id}": {
-      "post": {
-        "tags": [
-          "research"
-        ],
-        "summary": "Unlock Test",
-        "description": "Return the run's config with the test period unlocked (the unlock is recorded).",
-        "operationId": "unlock_test_api_v1_research_unlock_test__run_id__post",
-        "parameters": [
-          {
-            "name": "run_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Run Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "title": "Response Unlock Test Api V1 Research Unlock Test  Run Id  Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/research/{run_id}": {
-      "get": {
-        "tags": [
-          "research"
-        ],
-        "summary": "Get Research",
-        "description": "A stored research result.",
-        "operationId": "get_research_api_v1_research__run_id__get",
-        "parameters": [
-          {
-            "name": "run_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Run Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResearchResultOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
@@ -2788,16 +2186,6 @@
               }
             ]
           },
-          "fill_model": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PluginRef"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "execution": {
             "$ref": "#/components/schemas/ExecutionSpec"
           },
@@ -2834,16 +2222,6 @@
             "type": "integer",
             "title": "Seed",
             "default": 42
-          },
-          "split": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ResearchSplit"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "tags": {
             "items": {
@@ -2925,16 +2303,6 @@
               }
             ]
           },
-          "fill_model": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PluginRef"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "execution": {
             "$ref": "#/components/schemas/ExecutionSpec"
           },
@@ -2971,16 +2339,6 @@
             "type": "integer",
             "title": "Seed",
             "default": 42
-          },
-          "split": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ResearchSplit"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "tags": {
             "items": {
@@ -3640,29 +2998,6 @@
         "title": "CompareRunOut",
         "description": "A run in a comparison."
       },
-      "CompatibilityIssue": {
-        "properties": {
-          "level": {
-            "$ref": "#/components/schemas/IssueLevel"
-          },
-          "field": {
-            "type": "string",
-            "title": "Field"
-          },
-          "message": {
-            "type": "string",
-            "title": "Message"
-          }
-        },
-        "type": "object",
-        "required": [
-          "level",
-          "field",
-          "message"
-        ],
-        "title": "CompatibilityIssue",
-        "description": "One problem with a configuration."
-      },
       "DataSourceOut": {
         "properties": {
           "name": {
@@ -3935,11 +3270,6 @@
       },
       "ExecutionSpec": {
         "properties": {
-          "engine": {
-            "type": "string",
-            "title": "Engine",
-            "default": "vectorized"
-          },
           "lag_bars": {
             "type": "integer",
             "maximum": 20.0,
@@ -3968,20 +3298,6 @@
             "title": "Cash Rate",
             "default": 0.0
           },
-          "max_participation": {
-            "type": "number",
-            "maximum": 1.0,
-            "exclusiveMinimum": 0.0,
-            "title": "Max Participation",
-            "default": 1.0
-          },
-          "latency_bars": {
-            "type": "integer",
-            "maximum": 20.0,
-            "minimum": 0.0,
-            "title": "Latency Bars",
-            "default": 0
-          },
           "calendar": {
             "type": "string",
             "title": "Calendar",
@@ -3991,7 +3307,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ExecutionSpec",
-        "description": "Engine and execution settings.\n\nAttributes:\n    engine: Engine name (``vectorized`` or ``event``).\n    lag_bars: Bars between the decision bar and the trade bar. Must be >= 1 so a decision\n        made at the close of ``t`` can never trade at that same close.\n    price: Trade at the close or the open of the trade bar.\n    rebalance: Rebalance schedule.\n    rebalance_every_n: Bars between rebalances for ``every_n``.\n    cash_rate: Annual interest earned on positive cash (and paid on negative cash).\n    max_participation: Max fraction of bar volume an order may take (event engine).\n    latency_bars: Extra bars between order submission and eligibility (event engine).\n    calendar: Exchange calendar code used for annualization."
+        "description": "Engine and execution settings.\n\nAttributes:\n    lag_bars: Bars between the decision bar and the trade bar. Must be >= 1 so a decision\n        made at the close of ``t`` can never trade at that same close.\n    price: Trade at the close or the open of the trade bar.\n    rebalance: Rebalance schedule.\n    rebalance_every_n: Bars between rebalances for ``every_n``.\n    cash_rate: Annual interest earned on positive cash (and paid on negative cash).\n    calendar: Exchange calendar code used for annualization."
       },
       "ExperimentOut": {
         "properties": {
@@ -4088,6 +3404,20 @@
             "type": "object",
             "title": "Columns"
           },
+          "book_levels": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Book Levels",
+            "default": 0
+          },
+          "book_columns": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Book Columns"
+          },
           "extra": {
             "items": {
               "type": "string"
@@ -4098,6 +3428,12 @@
           "frequency": {
             "$ref": "#/components/schemas/Frequency",
             "default": "1d"
+          },
+          "bar_label": {
+            "type": "string",
+            "pattern": "^(end|start)$",
+            "title": "Bar Label",
+            "default": "end"
           },
           "timezone": {
             "type": "string",
@@ -4130,7 +3466,7 @@
           "timestamp"
         ],
         "title": "ImportMapping",
-        "description": "How to convert a user file to the canonical schema.\n\nAttributes:\n    timestamp: Source column with dates/times.\n    symbol: Source column with instrument ids (``None`` = single-instrument file).\n    fixed_symbol: Instrument id to use when ``symbol`` is ``None``.\n    columns: Canonical field -> source column (open, high, low, close, volume, ...).\n    extra: Extra source columns to keep as fields (renamed to snake_case).\n    frequency: Bar frequency.\n    timezone: Timezone of naive timestamps in the file.\n    datetime_format: Optional ``strptime`` format.\n    adjustment: Whether prices are raw, split-adjusted or total-return adjusted.\n    name: Display name of the dataset."
+        "description": "How to convert a user file to the canonical schema.\n\nAttributes:\n    timestamp: Source column with dates/times.\n    symbol: Source column with instrument ids (``None`` = single-instrument file).\n    fixed_symbol: Instrument id to use when ``symbol`` is ``None``.\n    columns: Canonical field -> source column (open, high, low, close, bid, ask, ...).\n    book_levels: Depth of the order book to import (0 for level-1 or OHLCV files).\n    book_columns: Canonical book column (``bid_px_1``, ``bid_sz_1``, ...) -> source column.\n    extra: Extra source columns to keep as fields (renamed to snake_case).\n    frequency: Bar frequency.\n    bar_label: Whether the file's timestamps sit at the bar ``end`` or ``start``; a\n        start-labelled intraday file is shifted to the end convention on import.\n    timezone: Timezone of naive timestamps in the file.\n    datetime_format: Optional ``strptime`` format.\n    adjustment: Whether prices are raw, split-adjusted or total-return adjusted.\n    name: Display name of the dataset."
       },
       "ImportPreviewOut": {
         "properties": {
@@ -4267,15 +3603,6 @@
         ],
         "title": "InstrumentOut",
         "description": "Instrument search result."
-      },
-      "IssueLevel": {
-        "type": "string",
-        "enum": [
-          "error",
-          "warning"
-        ],
-        "title": "IssueLevel",
-        "description": "Severity of a compatibility issue."
       },
       "JobDetailOut": {
         "properties": {
@@ -4558,41 +3885,6 @@
         "title": "LabelsUpdate",
         "description": "Editable run labels."
       },
-      "LookaheadOut": {
-        "properties": {
-          "passed": {
-            "type": "boolean",
-            "title": "Passed"
-          },
-          "message": {
-            "type": "string",
-            "title": "Message"
-          },
-          "cut_points": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Cut Points"
-          },
-          "mismatches": {
-            "items": {
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Mismatches"
-          }
-        },
-        "type": "object",
-        "required": [
-          "passed",
-          "message",
-          "cut_points",
-          "mismatches"
-        ],
-        "title": "LookaheadOut",
-        "description": "Lookahead check result."
-      },
       "MetricDescriptor": {
         "properties": {
           "key": {
@@ -4767,60 +4059,6 @@
         "title": "MetricsOut",
         "description": "Metric descriptors and values for one run."
       },
-      "MonteCarloRequest": {
-        "properties": {
-          "run_id": {
-            "type": "string",
-            "title": "Run Id"
-          },
-          "method": {
-            "type": "string",
-            "enum": [
-              "bootstrap",
-              "trades"
-            ],
-            "title": "Method",
-            "default": "bootstrap"
-          },
-          "n_paths": {
-            "type": "integer",
-            "maximum": 20000.0,
-            "minimum": 100.0,
-            "title": "N Paths",
-            "default": 1000
-          },
-          "mean_block": {
-            "type": "number",
-            "maximum": 250.0,
-            "minimum": 1.0,
-            "title": "Mean Block",
-            "default": 5.0
-          },
-          "horizon": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 10.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Horizon"
-          },
-          "seed": {
-            "type": "integer",
-            "title": "Seed",
-            "default": 7
-          }
-        },
-        "type": "object",
-        "required": [
-          "run_id"
-        ],
-        "title": "MonteCarloRequest",
-        "description": "Monte Carlo of a stored run."
-      },
       "OverlayStatsOut": {
         "properties": {
           "name": {
@@ -4968,7 +4206,6 @@
           "overlay",
           "cost_model",
           "slippage_model",
-          "fill_model",
           "metric",
           "chart",
           "universe"
@@ -5105,71 +4342,6 @@
         ],
         "title": "PositionsOut",
         "description": "Positions at a bar."
-      },
-      "Preset": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "config": {
-            "type": "object",
-            "title": "Config"
-          },
-          "created_at": {
-            "type": "string",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "title": "Updated At"
-          },
-          "notes": {
-            "type": "string",
-            "title": "Notes",
-            "default": ""
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "config",
-          "created_at",
-          "updated_at",
-          "notes"
-        ],
-        "title": "Preset",
-        "description": "A saved configuration."
-      },
-      "PresetIn": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "title": "Name"
-          },
-          "config": {
-            "type": "object",
-            "title": "Config"
-          },
-          "notes": {
-            "type": "string",
-            "title": "Notes",
-            "default": ""
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "config"
-        ],
-        "title": "PresetIn",
-        "description": "Create or update a preset."
       },
       "PullRequest": {
         "properties": {
@@ -5323,30 +4495,6 @@
         "title": "QualityReport",
         "description": "Data quality report for a dataset."
       },
-      "RandomSpace": {
-        "properties": {
-          "space": {
-            "additionalProperties": {
-              "type": "object"
-            },
-            "type": "object",
-            "title": "Space"
-          },
-          "n": {
-            "type": "integer",
-            "maximum": 2000.0,
-            "minimum": 1.0,
-            "title": "N",
-            "default": 50
-          }
-        },
-        "type": "object",
-        "required": [
-          "space"
-        ],
-        "title": "RandomSpace",
-        "description": "Random search space."
-      },
       "RebalanceRule": {
         "type": "string",
         "enum": [
@@ -5471,102 +4619,6 @@
         ],
         "title": "ReportWindow",
         "description": "A labelled date window."
-      },
-      "ResearchResultOut": {
-        "properties": {
-          "kind": {
-            "type": "string",
-            "title": "Kind"
-          },
-          "summary": {
-            "type": "object",
-            "title": "Summary"
-          },
-          "tables": {
-            "items": {
-              "$ref": "#/components/schemas/TableOut"
-            },
-            "type": "array",
-            "title": "Tables"
-          },
-          "charts": {
-            "items": {
-              "$ref": "#/components/schemas/ChartSpec"
-            },
-            "type": "array",
-            "title": "Charts"
-          },
-          "source_run": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Run"
-          },
-          "target": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Target"
-          }
-        },
-        "type": "object",
-        "required": [
-          "kind",
-          "summary",
-          "tables",
-          "charts",
-          "source_run",
-          "target"
-        ],
-        "title": "ResearchResultOut",
-        "description": "A research result rendered generically by the front end."
-      },
-      "ResearchSplit": {
-        "properties": {
-          "train_end": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Train End"
-          },
-          "validation_end": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Validation End"
-          },
-          "test_unlocked": {
-            "type": "boolean",
-            "title": "Test Unlocked",
-            "default": false
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "ResearchSplit",
-        "description": "Train/validation/test split. The test period is locked until explicitly unlocked."
       },
       "RunCreate": {
         "properties": {
@@ -5805,71 +4857,6 @@
         "title": "RunStatus",
         "description": "Lifecycle of a run."
       },
-      "SensitivityRequest": {
-        "properties": {
-          "config": {
-            "$ref": "#/components/schemas/BacktestConfig-Input"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "cost",
-              "delay",
-              "capacity"
-            ],
-            "title": "Kind",
-            "default": "cost"
-          },
-          "multiples": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "number"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Multiples"
-          },
-          "delays": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "integer"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Delays"
-          },
-          "capitals": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "number"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Capitals"
-          }
-        },
-        "type": "object",
-        "required": [
-          "config"
-        ],
-        "title": "SensitivityRequest",
-        "description": "Cost, delay or capacity sensitivity."
-      },
       "SeriesRole": {
         "type": "string",
         "enum": [
@@ -5954,126 +4941,6 @@
         "title": "Severity",
         "description": "Issue severity."
       },
-      "SweepRequest": {
-        "properties": {
-          "config": {
-            "$ref": "#/components/schemas/BacktestConfig-Input"
-          },
-          "target": {
-            "type": "string",
-            "title": "Target",
-            "default": "strategy"
-          },
-          "grid": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "items": {},
-                  "type": "array"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Grid"
-          },
-          "random": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RandomSpace"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "metric": {
-            "type": "string",
-            "title": "Metric",
-            "default": "sharpe"
-          },
-          "seed": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Seed"
-          }
-        },
-        "type": "object",
-        "required": [
-          "config"
-        ],
-        "title": "SweepRequest",
-        "description": "Parameter sweep."
-      },
-      "TableColumnOut": {
-        "properties": {
-          "key": {
-            "type": "string",
-            "title": "Key"
-          },
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "format": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Format"
-          }
-        },
-        "type": "object",
-        "required": [
-          "key",
-          "label",
-          "format"
-        ],
-        "title": "TableColumnOut",
-        "description": "A column of a research table."
-      },
-      "TableOut": {
-        "properties": {
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "columns": {
-            "items": {
-              "$ref": "#/components/schemas/TableColumnOut"
-            },
-            "type": "array",
-            "title": "Columns"
-          },
-          "rows": {
-            "items": {
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Rows"
-          }
-        },
-        "type": "object",
-        "required": [
-          "title",
-          "columns",
-          "rows"
-        ],
-        "title": "TableOut",
-        "description": "A generic table."
-      },
       "TradesOut": {
         "properties": {
           "total": {
@@ -6095,28 +4962,6 @@
         ],
         "title": "TradesOut",
         "description": "Page of trades."
-      },
-      "ValidateOut": {
-        "properties": {
-          "ok": {
-            "type": "boolean",
-            "title": "Ok"
-          },
-          "issues": {
-            "items": {
-              "$ref": "#/components/schemas/CompatibilityIssue"
-            },
-            "type": "array",
-            "title": "Issues"
-          }
-        },
-        "type": "object",
-        "required": [
-          "ok",
-          "issues"
-        ],
-        "title": "ValidateOut",
-        "description": "Compatibility check result."
       },
       "ValidationError": {
         "properties": {
@@ -6150,67 +4995,6 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "WalkForwardRequest": {
-        "properties": {
-          "config": {
-            "$ref": "#/components/schemas/BacktestConfig-Input"
-          },
-          "target": {
-            "type": "string",
-            "title": "Target",
-            "default": "strategy"
-          },
-          "grid": {
-            "additionalProperties": {
-              "items": {},
-              "type": "array"
-            },
-            "type": "object",
-            "title": "Grid"
-          },
-          "train_bars": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 20.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Train Bars"
-          },
-          "test_bars": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 5.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Test Bars"
-          },
-          "anchored": {
-            "type": "boolean",
-            "title": "Anchored",
-            "default": false
-          },
-          "metric": {
-            "type": "string",
-            "title": "Metric",
-            "default": "sharpe"
-          }
-        },
-        "type": "object",
-        "required": [
-          "config",
-          "grid"
-        ],
-        "title": "WalkForwardRequest",
-        "description": "Walk-forward optimization."
       },
       "WrdsTestOut": {
         "properties": {

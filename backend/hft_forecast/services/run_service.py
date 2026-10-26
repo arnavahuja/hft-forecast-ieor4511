@@ -7,7 +7,6 @@ from typing import Any
 
 from hft_forecast.core.errors import CompatibilityError
 from hft_forecast.core.run_config import BacktestConfig
-from hft_forecast.engine.lookahead import LookaheadReport, check_lookahead
 from hft_forecast.services.compatibility import CompatibilityReport
 from hft_forecast.services.container import Services
 from hft_forecast.services.jobs import Job, JobManager
@@ -53,8 +52,6 @@ class RunService:
                 "Invalid run configuration",
                 details={"issues": [i.model_dump() for i in report.issues]},
             )
-        if config.split and config.split.test_unlocked and config.experiment:
-            self.services.store.record_test_unlock(config.experiment, None)
         record = self.services.store.create(config, parent_id=parent_id)
         job = self.jobs.submit(
             "backtest",
@@ -88,11 +85,3 @@ class RunService:
         self.jobs.cancel_run(run_id)
         self.services.store.delete(run_id)
         self.services.results.evict(run_id)
-
-    def lookahead(self, config: BacktestConfig) -> LookaheadReport:
-        """Run the truncation lookahead check for a configuration's strategy."""
-        prepared = self.services.runner.prepare(config)
-        data = prepared.data
-        if prepared.options.strategy_instruments is not None:
-            data = data.select_instruments(prepared.options.strategy_instruments)
-        return check_lookahead(prepared.strategy, data, constructor=prepared.pipeline.constructor)

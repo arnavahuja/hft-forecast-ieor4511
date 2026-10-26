@@ -1,4 +1,8 @@
-"""Pure robustness math: parameter grids, walk-forward windows, Monte Carlo, PBO (CSCV)."""
+"""Pure robustness math: walk-forward windows, PBO (CSCV) and the breakeven cost multiple.
+
+Used by ``ml.cv`` for the fold windows and by ``ml.deflate`` for overfitting and the
+breakeven search; nothing here touches the engine or the run store.
+"""
 
 from __future__ import annotations
 
@@ -9,49 +13,9 @@ from typing import Any, Final
 
 import numpy as np
 
-from hft_forecast.analytics import stats as S
 from hft_forecast.core.types import FloatArray, IntArray
 
-FAN_PERCENTILES: Final = (5.0, 25.0, 50.0, 75.0, 95.0)
 MIN_CSCV_SPLITS: Final = 2
-
-
-# --------------------------------------------------------------------------- grids
-
-
-def expand_grid(grid: dict[str, list[Any]]) -> list[dict[str, Any]]:
-    """Cartesian product of parameter values (sorted keys for determinism)."""
-    keys = sorted(grid)
-    return [
-        dict(zip(keys, combo, strict=True)) for combo in itertools.product(*(grid[k] for k in keys))
-    ]
-
-
-def random_grid(
-    space: dict[str, dict[str, Any]], n: int, rng: np.random.Generator
-) -> list[dict[str, Any]]:
-    """Random search points.
-
-    ``space[p]`` is ``{"min", "max", "type": "int" | "float" | "log"}`` or ``{"values": [...]}``.
-    """
-    points = []
-    for _ in range(n):
-        point: dict[str, Any] = {}
-        for name in sorted(space):
-            spec = space[name]
-            if "values" in spec:
-                point[name] = spec["values"][int(rng.integers(len(spec["values"])))]
-                continue
-            lo, hi = float(spec["min"]), float(spec["max"])
-            kind = spec.get("type", "float")
-            if kind == "int":
-                point[name] = int(rng.integers(int(lo), int(hi) + 1))
-            elif kind == "log":
-                point[name] = float(math.exp(rng.uniform(math.log(lo), math.log(hi))))
-            else:
-                point[name] = float(rng.uniform(lo, hi))
-        points.append(point)
-    return points
 
 
 # --------------------------------------------------------------------------- walk-forward
@@ -77,40 +41,6 @@ def walk_forward_windows(
         out.append(Window(start if anchored else train_end - train, train_end, test_end))
         train_end = test_end
     return out
-
-
-# --------------------------------------------------------------------------- monte carlo
-
-
-def bootstrap_paths(
-    returns: FloatArray, n_paths: int, horizon: int, mean_block: float, seed: int
-) -> FloatArray:
-    """Stationary-bootstrap return paths ``(n_paths, horizon)``."""
-    r = returns[np.isfinite(returns)]
-    rng = np.random.default_rng(seed)
-    idx = S.stationary_bootstrap_indices(len(r), n_paths, mean_block, rng)
-    if horizon <= len(r):
-        return r[idx[:, :horizon]]
-    reps = math.ceil(horizon / len(r))
-    return np.tile(r[idx], reps)[:, :horizon]
-
-
-def shuffle_trade_paths(trade_returns: FloatArray, n_paths: int, seed: int) -> FloatArray:
-    """Random permutations of trade order ``(n_paths, n_trades)``."""
-    rng = np.random.default_rng(seed)
-    order = np.argsort(rng.random((n_paths, len(trade_returns))), axis=1)
-    return trade_returns[order]
-
-
-def path_stats(paths: FloatArray) -> dict[str, FloatArray]:
-    """Terminal wealth and max drawdown per path, plus a percentile fan of wealth."""
-    wealth = np.cumprod(1.0 + paths, axis=1)
-    peak = np.maximum.accumulate(
-        np.concatenate([np.ones((len(paths), 1)), wealth], axis=1), axis=1
-    )[:, 1:]
-    mdd = (wealth / peak - 1.0).min(axis=1)
-    fan = np.percentile(wealth, FAN_PERCENTILES, axis=0)
-    return {"terminal": wealth[:, -1], "max_drawdown": mdd, "fan": fan}
 
 
 # --------------------------------------------------------------------------- overfitting

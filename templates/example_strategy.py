@@ -8,13 +8,14 @@ import numpy as np
 from pydantic import Field
 
 from hft_forecast.core import (
-    Context,
     MarketData,
     Strategy,
     StrategyParams,
     TargetFrame,
-    columns as C,
     register,
+)
+from hft_forecast.core import (
+    columns as C,
 )
 from hft_forecast.core.numeric import rolling_mean
 
@@ -32,7 +33,7 @@ class ExampleStrategy(Strategy):
     Params = ExampleStrategyParams
     params: ExampleStrategyParams
     capabilities: ClassVar[frozenset[str]] = frozenset(
-        {"engine:vectorized", "engine:event", "asset:equity", "freq:daily"}
+        {"engine:vectorized", "asset:equity", "freq:daily"}
     )
 
     def warmup(self) -> int:
@@ -46,12 +47,3 @@ class ExampleStrategy(Strategy):
         n = max(len(data.instruments), 1)
         weights = np.where(np.isfinite(close), above / n, np.nan)
         return TargetFrame(data.timestamps, data.instruments, weights)
-
-    def on_bar(self, ctx: Context) -> None:
-        """Optional event-engine form (history is limited to the current bar)."""
-        close = ctx.history(C.CLOSE, self.params.window)
-        if len(close) < self.params.window:
-            return
-        above = close[-1] > np.nanmean(close, axis=0)
-        n = max(len(ctx.instruments), 1)
-        ctx.set_target_weights({i: 1 / n for i, a in zip(ctx.instruments, above) if a})

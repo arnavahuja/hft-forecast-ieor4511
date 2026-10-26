@@ -24,8 +24,6 @@ app = typer.Typer(
 )
 data_app = typer.Typer(help="Data commands.", no_args_is_help=True)
 app.add_typer(data_app, name="data")
-preset_app = typer.Typer(help="Preset commands.", no_args_is_help=True)
-app.add_typer(preset_app, name="preset")
 
 
 def _services() -> Any:
@@ -281,19 +279,6 @@ def data_catalog() -> None:
             f"{rec.id:<28} {rec.kind:<7} {rec.source:<11} {rec.frequency:<5} "
             f"{rec.start} → {rec.end}  {rec.rows} rows  {len(rec.instruments)} instr."
         )
-
-
-@preset_app.command("import")
-def preset_import(
-    configs: Annotated[list[Path], typer.Argument(help="YAML/JSON run configs", exists=True)],
-) -> None:
-    """Save run configs as presets (named after each config's name, else the file name)."""
-    services = _services()
-    for path in configs:
-        cfg = load_config(path)
-        name = cfg.name or path.stem
-        preset = services.store.save_preset(name, cfg.model_dump(mode="json"))
-        typer.echo(f"preset {preset.id}  {name}")
 
 
 @app.command()

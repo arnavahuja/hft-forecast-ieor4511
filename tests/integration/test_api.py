@@ -84,15 +84,6 @@ def test_structured_errors(client):
     assert resp.status_code == 422 and resp.json()["code"] == "validation_error"
 
 
-def test_validate_endpoint(client):
-    ok = client.post(f"{API}/runs/validate", json={"config": _config()}).json()
-    assert ok["ok"] is True
-    cfg = _config()
-    cfg["costs"] = []
-    warn = client.post(f"{API}/runs/validate", json={"config": cfg}).json()
-    assert any(i["level"] == "warning" for i in warn["issues"])
-
-
 def test_full_run_flow(client):
     run_id = _run(client, _config())
     run = client.get(f"{API}/runs/{run_id}").json()
@@ -158,7 +149,7 @@ def test_compare_five_runs_across_every_comparison_chart(client):
     assert aligned.status_code == 200
 
 
-def test_clone_labels_presets_delete(client):
+def test_clone_labels_and_delete(client):
     run_id = _run(client, _config())
     clone = client.post(
         f"{API}/runs/{run_id}/clone",
@@ -169,9 +160,6 @@ def test_clone_labels_presets_delete(client):
     upd = client.patch(f"{API}/runs/{run_id}", json={"name": "renamed", "tags": ["x"]}).json()
     assert upd["name"] == "renamed" and upd["tags"] == ["x"]
     assert client.get(f"{API}/runs", params={"tag": "x"}).json()[0]["id"] == run_id
-    preset = client.post(f"{API}/presets", json={"name": "p1", "config": _config()}).json()
-    assert client.get(f"{API}/presets").json()[0]["name"] == "p1"
-    assert client.delete(f"{API}/presets/{preset['id']}").status_code == 204
     assert client.delete(f"{API}/runs/{run_id}").status_code == 204
     assert client.get(f"{API}/runs/{run_id}").status_code == 404
 
@@ -210,8 +198,3 @@ def test_job_websocket_streams_to_completion(client):
                 break
     assert events[-1]["job"]["status"] == "completed"
     json.dumps(events)
-
-
-def test_lookahead_endpoint(client):
-    body = client.post(f"{API}/runs/lookahead-check", json={"config": _config()}).json()
-    assert body["passed"] is True

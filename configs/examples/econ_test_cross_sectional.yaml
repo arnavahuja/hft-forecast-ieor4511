@@ -28,7 +28,6 @@ overlays:
     params:
       max_gross: 1.0
 execution:
-  engine: vectorized
   lag_bars: 1
   rebalance: every_bar
 slippage:

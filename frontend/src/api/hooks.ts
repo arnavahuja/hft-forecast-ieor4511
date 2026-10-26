@@ -13,8 +13,6 @@ export type MetricValue = Schemas['MetricValue']
 export type Job = Schemas['JobOut']
 export type DatasetRecord = Schemas['DatasetRecord']
 export type CompareTable = Schemas['CompareMetricsOut']
-export type Preset = Schemas['Preset']
-export type Issue = Schemas['CompatibilityIssue']
 export type ImportMapping = Schemas['ImportMapping']
 export type ReportRequest = Schemas['ReportRequest']
 
@@ -37,7 +35,6 @@ export const keys = {
   catalog: ['catalog'] as const,
   sources: ['sources'] as const,
   jobs: ['jobs'] as const,
-  presets: ['presets'] as const,
 }
 
 export function usePlugins() {
@@ -244,13 +241,6 @@ export function useJobs() {
   })
 }
 
-export function usePresets() {
-  return useQuery({
-    queryKey: keys.presets,
-    queryFn: async () => unwrap(await api.GET('/api/v1/presets')),
-  })
-}
-
 export function useSettings() {
   return useQuery({
     queryKey: ['settings'],
@@ -340,20 +330,6 @@ export function useLaunchRun() {
       void qc.invalidateQueries({ queryKey: ['runs'] })
       void qc.invalidateQueries({ queryKey: keys.jobs })
     },
-  })
-}
-
-export function useValidateRun() {
-  return useMutation({
-    mutationFn: async (config: BacktestConfig) =>
-      unwrap(await api.POST('/api/v1/runs/validate', { body: { config } })),
-  })
-}
-
-export function useLookaheadCheck() {
-  return useMutation({
-    mutationFn: async (config: BacktestConfig) =>
-      unwrap(await api.POST('/api/v1/runs/lookahead-check', { body: { config } })),
   })
 }
 
@@ -449,28 +425,6 @@ export function useDeleteDataset() {
   })
 }
 
-export function useSavePreset() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (body: Schemas['PresetIn']) =>
-      unwrap(await api.POST('/api/v1/presets', { body })),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.presets }),
-  })
-}
-
-export function useDeletePreset() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await api.DELETE('/api/v1/presets/{preset_id}', {
-        params: { path: { preset_id: id } },
-      })
-      unwrap({ ...res, data: null })
-    },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.presets }),
-  })
-}
-
 export function useCombine() {
   return useMutation({
     mutationFn: async (body: Schemas['CombineRequest']) =>
@@ -485,65 +439,3 @@ export function useWrdsTest() {
 }
 
 // ------------------------------------------------------------------ research
-
-export type ResearchResult = Schemas['ResearchResultOut']
-export type SweepRequest = Schemas['SweepRequest']
-export type WalkForwardRequest = Schemas['WalkForwardRequest']
-export type MonteCarloRequest = Schemas['MonteCarloRequest']
-export type SensitivityRequest = Schemas['SensitivityRequest']
-
-export function useResearchList() {
-  return useQuery({
-    queryKey: ['research'],
-    queryFn: async () => unwrap(await api.GET('/api/v1/research')),
-  })
-}
-
-export function useResearchResult(id: string | null) {
-  return useQuery({
-    queryKey: ['research', id],
-    enabled: Boolean(id),
-    queryFn: async () =>
-      unwrap(
-        await api.GET('/api/v1/research/{run_id}', { params: { path: { run_id: id ?? '' } } }),
-      ),
-  })
-}
-
-export function useRegimes(runId: string | null) {
-  return useQuery({
-    queryKey: ['research', 'regimes', runId],
-    enabled: Boolean(runId),
-    queryFn: async () =>
-      unwrap(
-        await api.GET('/api/v1/research/regimes/{run_id}', {
-          params: { path: { run_id: runId ?? '' } },
-        }),
-      ),
-  })
-}
-
-export function useSubmitResearch() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (
-      req:
-        | { kind: 'sweep'; body: SweepRequest }
-        | { kind: 'walk-forward'; body: WalkForwardRequest }
-        | { kind: 'monte-carlo'; body: MonteCarloRequest }
-        | { kind: 'sensitivity'; body: SensitivityRequest },
-    ) => {
-      switch (req.kind) {
-        case 'sweep':
-          return unwrap(await api.POST('/api/v1/research/sweep', { body: req.body }))
-        case 'walk-forward':
-          return unwrap(await api.POST('/api/v1/research/walk-forward', { body: req.body }))
-        case 'monte-carlo':
-          return unwrap(await api.POST('/api/v1/research/monte-carlo', { body: req.body }))
-        case 'sensitivity':
-          return unwrap(await api.POST('/api/v1/research/sensitivity', { body: req.body }))
-      }
-    },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.jobs }),
-  })
-}

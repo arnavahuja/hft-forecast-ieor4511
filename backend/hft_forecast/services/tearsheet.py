@@ -139,8 +139,7 @@ def render_tearsheet(
     cfg = record.config
     sub = (
         f"{html.escape(cfg['strategy']['name'])} · {cfg['data']['source']} · "
-        f"{cfg['data']['start']} → {cfg['data']['end']} · engine "
-        f"{cfg['execution']['engine']} · config {record.config_hash}"
+        f"{cfg['data']['start']} → {cfg['data']['end']} · config {record.config_hash}"
     )
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>{title} · Tearsheet</title><style>{CSS}</style></head><body>

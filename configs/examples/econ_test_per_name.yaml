@@ -20,7 +20,6 @@ strategy:
     hold_bars: 6          # the 30 s horizon on a 5 s grid
     overlap: average
 execution:
-  engine: vectorized
   lag_bars: 1             # decide at the close of t, trade at the close of t+1
   price: close            # the mid, for a quote dataset
   rebalance: on_change

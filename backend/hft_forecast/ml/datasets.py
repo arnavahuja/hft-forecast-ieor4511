@@ -24,6 +24,7 @@ from hft_forecast.ml.base import (
     SECONDS_SINCE_OPEN,
     SECONDS_TO_CLOSE,
     SESSION_ID,
+    HorizonSpec,
     require_columns,
 )
 from hft_forecast.ml.config import ExperimentConfig
@@ -77,23 +78,35 @@ def fetch_bars(config: ExperimentConfig, data: DataService, instrument: str) -> 
     """One instrument's bars, from the manifest when there is one, else through the cache.
 
     Raises:
-        ConfigError: If the bars are not labelled at the bar end.
+        ConfigError: If the bars are not labelled at the bar end, or are not on the
+            horizon's grid.
     """
     if config.manifest:
         manifest = Manifest.load(data.paths.manifests_dir, config.manifest)
         frame = load_bars(manifest, instrument).collect()
     else:
         fetched = data.fetch(config.data.to_request([instrument]))
-        _check_bar_label(fetched)
+        _check_bars(fetched, config.horizon)
         frame = fetched.frame
     return frame.sort(C.TIMESTAMP)
 
 
-def _check_bar_label(data: MarketData) -> None:
+def _check_bars(data: MarketData, horizon: HorizonSpec) -> None:
+    """The two things a dataset has to agree with before labels mean anything.
+
+    The grid check matters for imported files, whose bar size is whatever the mapping
+    declared: labelling 1 min bars as a 5 s grid would silently drop every row on the
+    ``bar_gap`` rule instead of saying the frequency is wrong.
+    """
     if data.metadata.get(BAR_LABEL_KEY) != "end":
         raise ConfigError(
             "ml needs bars labelled at the bar end",
             details={BAR_LABEL_KEY: data.metadata.get(BAR_LABEL_KEY)},
+        )
+    if data.frequency is not horizon.grid:
+        raise ConfigError(
+            f"data is {data.frequency} but horizon '{horizon.name}' is on a {horizon.grid} grid",
+            details={"data": data.frequency.value, "grid": horizon.grid.value},
         )
 
 

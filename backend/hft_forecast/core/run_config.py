@@ -98,39 +98,23 @@ class ExecutionSpec(BaseModel):
     """Engine and execution settings.
 
     Attributes:
-        engine: Engine name (``vectorized`` or ``event``).
         lag_bars: Bars between the decision bar and the trade bar. Must be >= 1 so a decision
             made at the close of ``t`` can never trade at that same close.
         price: Trade at the close or the open of the trade bar.
         rebalance: Rebalance schedule.
         rebalance_every_n: Bars between rebalances for ``every_n``.
         cash_rate: Annual interest earned on positive cash (and paid on negative cash).
-        max_participation: Max fraction of bar volume an order may take (event engine).
-        latency_bars: Extra bars between order submission and eligibility (event engine).
         calendar: Exchange calendar code used for annualization.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    engine: str = "vectorized"
     lag_bars: int = Field(1, ge=1, le=20)
     price: ExecutionPrice = ExecutionPrice.CLOSE
     rebalance: RebalanceRule = RebalanceRule.ON_CHANGE
     rebalance_every_n: int = Field(1, ge=1)
     cash_rate: float = Field(0.0, ge=-0.05, le=0.5)
-    max_participation: float = Field(1.0, gt=0.0, le=1.0)
-    latency_bars: int = Field(0, ge=0, le=20)
     calendar: str = "XNYS"
-
-
-class ResearchSplit(BaseModel):
-    """Train/validation/test split. The test period is locked until explicitly unlocked."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    train_end: date | None = None
-    validation_end: date | None = None
-    test_unlocked: bool = False
 
 
 class BacktestConfig(BaseModel):
@@ -145,7 +129,6 @@ class BacktestConfig(BaseModel):
     overlays: list[PluginRef] = Field(default_factory=list)
     costs: list[PluginRef] = Field(default_factory=list)
     slippage: PluginRef | None = None
-    fill_model: PluginRef | None = None
     execution: ExecutionSpec = Field(default_factory=ExecutionSpec)
     benchmark: str | None = None
     risk_free: str | None = Field(
@@ -155,7 +138,6 @@ class BacktestConfig(BaseModel):
     )
     initial_capital: float = Field(DEFAULT_CAPITAL, gt=0)
     seed: int = DEFAULT_SEED
-    split: ResearchSplit | None = None
     tags: list[str] = Field(default_factory=list)
     notes: str = ""
     experiment: str | None = None

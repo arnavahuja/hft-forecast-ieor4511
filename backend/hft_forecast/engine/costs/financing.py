@@ -7,13 +7,13 @@ from typing import ClassVar
 import numpy as np
 from pydantic import Field
 
-from hft_forecast.core.interfaces import ENGINE_EVENT, ENGINE_VECTORIZED, CostContext, CostModel
+from hft_forecast.core.interfaces import ENGINE_VECTORIZED, CostContext, CostModel
 from hft_forecast.core.params import CostParams
 from hft_forecast.core.registry import register
 from hft_forecast.core.results import COST_BORROW, COST_FINANCING
-from hft_forecast.core.types import FloatArray, Instrument
+from hft_forecast.core.types import FloatArray
 
-BOTH_ENGINES = frozenset({ENGINE_VECTORIZED, ENGINE_EVENT})
+VECTORIZED = frozenset({ENGINE_VECTORIZED})
 
 
 class BorrowParams(CostParams):
@@ -28,19 +28,13 @@ class ShortBorrowFee(CostModel):
 
     Params = BorrowParams
     params: BorrowParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES | {"supports:short"}
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED | {"supports:short"}
     category: ClassVar[str] = COST_BORROW
 
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Rate / periods_per_year x |short weight|."""
         short = -np.clip(ctx.holdings, None, 0.0)
         return short * self.params.annual_rate / ctx.periods_per_year
-
-    def holding_cost(
-        self, market_value: float, instrument: Instrument, year_fraction: float
-    ) -> float:
-        """Fee on a short position's value."""
-        return max(-market_value, 0.0) * self.params.annual_rate * year_fraction
 
 
 class MarginParams(CostParams):
@@ -61,7 +55,7 @@ class MarginInterest(CostModel):
 
     Params = MarginParams
     params: MarginParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED
     category: ClassVar[str] = COST_FINANCING
 
     def vectorized(self, ctx: CostContext) -> FloatArray:

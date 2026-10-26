@@ -25,6 +25,7 @@ from hft_forecast.core.types import (
     MarketData,
 )
 from hft_forecast.data.adjustments import convert
+from hft_forecast.data.importer import ImportMapping, quote_metadata
 
 
 @register(
@@ -32,7 +33,13 @@ from hft_forecast.data.adjustments import convert
     name="local_file",
     version="1.0.0",
     tags=["local", "csv", "parquet", "excel"],
-    capabilities={"asset:equity", "asset:future", "freq:daily", "freq:intraday"},
+    capabilities={
+        "asset:equity",
+        "asset:future",
+        "freq:daily",
+        "freq:intraday",
+        "freq:subminute",
+    },
 )
 class LocalFileSource(DataSource):
     """Datasets imported from CSV, Parquet, Excel or Feather files."""
@@ -94,6 +101,14 @@ class LocalFileSource(DataSource):
                 "source": "local_file",
                 "dataset": request.dataset,
                 "adjustment": request.adjustment.value,
+                **_quote_metadata(mapping, frame.columns),
             },
         )
         return data.between(request.start, request.end)
+
+
+def _quote_metadata(mapping: dict[str, Any], columns: list[str]) -> dict[str, str]:
+    """Bar labelling and price basis of an imported dataset (nothing for a legacy import)."""
+    if not mapping:
+        return {}
+    return quote_metadata(ImportMapping.model_validate(mapping), columns)

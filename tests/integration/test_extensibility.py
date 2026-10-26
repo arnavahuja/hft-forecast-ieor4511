@@ -65,10 +65,6 @@ def test_user_plugins_are_runnable_and_comparable(tmp_path: Path, user_dir: Path
         assert "my_ext_chart" in charts
         table = client.post(f"{API}/compare/metrics", json={"run_ids": ids}).json()
         assert any(r["key"] == "my_ext_metric_big_up_days" for r in table["rows"])
-        lookahead = client.post(
-            f"{API}/runs/lookahead-check", json={"config": _config("my_ext_strategy", {})}
-        ).json()
-        assert lookahead["passed"]
     jobs.shutdown()
 
 

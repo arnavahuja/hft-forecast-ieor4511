@@ -20,10 +20,15 @@ export default defineConfig({
     trace: 'retain-on-failure',
     colorScheme: 'dark',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1600, height: 1000 } } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1600, height: 1000 } },
+    },
+  ],
   webServer: [
     {
-      command: `${PYTHON} -m backbone.cli serve --port ${API_PORT}`,
+      command: `${PYTHON} -m hft_forecast.cli serve --port ${API_PORT}`,
       cwd: '..',
       url: `http://127.0.0.1:${API_PORT}/api/v1/health`,
       reuseExistingServer: false,

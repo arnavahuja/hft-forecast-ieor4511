@@ -7,7 +7,7 @@ from pydantic import Field
 
 from hft_forecast.core import columns as C
 from hft_forecast.core.errors import ConfigError
-from hft_forecast.core.interfaces import Context, Overlay, OverlayContext
+from hft_forecast.core.interfaces import Overlay, OverlayContext
 from hft_forecast.core.numeric import rolling_mean, rolling_std, shift
 from hft_forecast.core.params import OverlayParams
 from hft_forecast.core.registry import register
@@ -50,18 +50,6 @@ class VolTarget(Overlay):
         scale = np.where(np.isfinite(scale), scale, 1.0)
         ctx.notes.append(f"average scale {float(np.mean(scale)):.2f}")
         return scale_rows(targets, scale)
-
-    def on_bar(self, ctx: Context) -> None:
-        """Scale staged targets by target / realized portfolio vol so far."""
-        staged = ctx.target_weights()
-        rets = ctx.portfolio_returns(self.params.window)
-        if not staged or len(rets) < self.params.window:
-            return
-        vol = float(np.std(rets, ddof=1)) * np.sqrt(ctx.periods_per_year)
-        if vol <= 0:
-            return
-        scale = min(self.params.target_vol / vol, self.params.max_leverage)
-        ctx.set_target_weights({k: v * scale for k, v in staged.items()})
 
 
 class KellyParams(OverlayParams):

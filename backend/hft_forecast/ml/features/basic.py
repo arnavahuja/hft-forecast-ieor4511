@@ -7,7 +7,7 @@ close. Groups add their own sets beside this one; they do not edit it.
 
 from __future__ import annotations
 
-from typing import ClassVar, Final
+from typing import Annotated, ClassVar, Final
 
 import polars as pl
 from pydantic import Field
@@ -24,8 +24,17 @@ EPS: Final = 1e-12
 
 
 class BasicParams(PluginParams):
-    """Window lengths of the basic set."""
+    """Window lengths of the basic set.
 
+    The windows are counted in bars, so they mean different things on different grids: 100
+    bars is eight minutes of a 5 s grid but more than one session of a 5 min grid. A group on
+    a coarse grid shrinks them rather than getting an all-null column.
+    """
+
+    vol_windows: list[Annotated[int, Field(ge=MIN_VOL_BARS)]] = Field(
+        default_factory=lambda: list(VOL_WINDOWS),
+        description="Realized-volatility windows in bars; each must fit inside a session",
+    )
     coarse_seconds: int = Field(
         60, ge=1, description="Bar size of the completed coarse-grid volatility feature"
     )
@@ -37,7 +46,7 @@ class Basic(FeatureSet):
 
     Params = BasicParams
     params: BasicParams
-    lookback_bars: ClassVar[int] = max(VOL_WINDOWS)
+    lookback_bars: ClassVar[int] = max(VOL_WINDOWS)  # with the default vol_windows
     requires: ClassVar[tuple[str, ...]] = (
         C.MID,
         C.SPREAD_BPS,
@@ -70,7 +79,7 @@ class Basic(FeatureSet):
             pl.col(SECONDS_SINCE_OPEN).cast(pl.Float64).alias("f_seconds_since_open"),
             *(
                 pl.col("_r1").rolling_std(window).over(group).alias(f"f_vol_{window}")
-                for window in VOL_WINDOWS
+                for window in self.params.vol_windows
             ),
             self._completed_coarse_vol(group, bar_seconds(frame)),
         ]

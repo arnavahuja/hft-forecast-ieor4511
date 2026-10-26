@@ -9,12 +9,10 @@ import numpy as np
 from hft_forecast.core import columns as C
 from hft_forecast.core.interfaces import (
     ASSET_EQUITY,
-    ENGINE_EVENT,
     ENGINE_VECTORIZED,
     FREQ_DAILY,
     FREQ_INTRADAY,
     FREQ_SUBMINUTE,
-    Context,
     Strategy,
 )
 from hft_forecast.core.params import StrategyParams
@@ -38,7 +36,6 @@ class BuyAndHold(Strategy):
     capabilities: ClassVar[frozenset[str]] = frozenset(
         {
             ENGINE_VECTORIZED,
-            ENGINE_EVENT,
             ASSET_EQUITY,
             FREQ_DAILY,
             FREQ_INTRADAY,
@@ -53,15 +50,3 @@ class BuyAndHold(Strategy):
         with np.errstate(divide="ignore", invalid="ignore"):
             weights = np.where(valid & (count > 0), 1.0 / count, 0.0)
         return TargetFrame(data.timestamps, data.instruments, weights)
-
-    def on_bar(self, ctx: Context) -> None:
-        """Set equal weights whenever the set of priced instruments changes."""
-        valid = np.isfinite(ctx.current(C.CLOSE))
-        key = tuple(bool(v) for v in valid)
-        if ctx.state.get("key") == key:
-            return
-        ctx.state["key"] = key
-        n = int(valid.sum())
-        ctx.set_target_weights(
-            {i: 1.0 / n for i, ok in zip(ctx.instruments, valid, strict=True) if ok} if n else {}
-        )

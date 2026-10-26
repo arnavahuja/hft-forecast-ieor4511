@@ -9,9 +9,7 @@ from pydantic import Field
 
 from hft_forecast.core import columns as C
 from hft_forecast.core.interfaces import (
-    ENGINE_EVENT,
     ENGINE_VECTORIZED,
-    BarSnapshot,
     CostContext,
     SlippageModel,
 )
@@ -21,7 +19,7 @@ from hft_forecast.core.registry import register
 from hft_forecast.core.types import FloatArray
 
 BPS: Final = 1e-4
-BOTH_ENGINES = frozenset({ENGINE_VECTORIZED, ENGINE_EVENT})
+VECTORIZED = frozenset({ENGINE_VECTORIZED})
 
 
 class HalfSpreadParams(CostParams):
@@ -36,15 +34,11 @@ class HalfSpread(SlippageModel):
 
     Params = HalfSpreadParams
     params: HalfSpreadParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED
 
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Half spread x |traded weight|."""
         return np.abs(ctx.trades) * 0.5 * self.params.spread_bps * BPS
-
-    def price_adjustment(self, quantity: float, price: float, bar: BarSnapshot) -> float:
-        """Half the spread per unit."""
-        return price * 0.5 * self.params.spread_bps * BPS
 
 
 class VolScaledParams(CostParams):
@@ -60,17 +54,12 @@ class VolatilityScaled(SlippageModel):
 
     Params = VolScaledParams
     params: VolScaledParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED
 
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """K x trailing vol x |traded weight|."""
         vol = np.nan_to_num(rolling_std(ctx.returns, self.params.window, 2), nan=0.0)
         return np.abs(ctx.trades) * self.params.k * vol
-
-    def price_adjustment(self, quantity: float, price: float, bar: BarSnapshot) -> float:
-        """K x vol per unit."""
-        vol = bar.volatility if np.isfinite(bar.volatility) else 0.0
-        return price * self.params.k * vol
 
 
 class SqrtImpactParams(CostParams):
@@ -87,7 +76,7 @@ class SqrtImpact(SlippageModel):
 
     Params = SqrtImpactParams
     params: SqrtImpactParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED
 
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Impact fraction x |traded weight|."""
@@ -99,13 +88,6 @@ class SqrtImpact(SlippageModel):
         with np.errstate(divide="ignore", invalid="ignore"):
             participation = np.nan_to_num(ctx.traded_units() / adv, nan=0.0, posinf=1.0)
         return np.abs(ctx.trades) * p.k * vol * np.sqrt(participation)
-
-    def price_adjustment(self, quantity: float, price: float, bar: BarSnapshot) -> float:
-        """Impact per unit using this bar's volume as the ADV proxy."""
-        vol = bar.volatility if np.isfinite(bar.volatility) else 0.0
-        if bar.volume <= 0:
-            return 0.0
-        return price * self.params.k * vol * float(np.sqrt(abs(quantity) / bar.volume))
 
 
 class QuotedSpreadParams(CostParams):
@@ -128,7 +110,7 @@ class QuotedSpread(SlippageModel):
 
     Params = QuotedSpreadParams
     params: QuotedSpreadParams
-    capabilities: ClassVar[frozenset[str]] = BOTH_ENGINES
+    capabilities: ClassVar[frozenset[str]] = VECTORIZED
     requires: ClassVar[tuple[str, ...]] = (C.SPREAD_BPS,)
 
     def vectorized(self, ctx: CostContext) -> FloatArray:
@@ -136,9 +118,3 @@ class QuotedSpread(SlippageModel):
         spread_bps = np.nan_to_num(ctx.panel(C.SPREAD_BPS), nan=self.params.min_bps)
         effective = np.maximum(spread_bps, self.params.min_bps)
         return np.abs(ctx.trades) * 0.5 * effective * BPS * self.params.multiplier
-
-    def price_adjustment(self, quantity: float, price: float, bar: BarSnapshot) -> float:
-        """Half the bar's spread per unit, falling back to ``min_bps`` without a quote."""
-        floor = price * self.params.min_bps * BPS
-        half = 0.5 * bar.spread if np.isfinite(bar.spread) else floor
-        return max(half, floor) * self.params.multiplier

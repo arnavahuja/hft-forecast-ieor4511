@@ -86,12 +86,11 @@ def lag_targets(values: FloatArray, lag: int) -> FloatArray:
 
 
 class VectorizedEngine:
-    """Fast engine for research, sweeps and cross-sectional work.
+    """Fast engine for per-name and cross-sectional backtests.
 
     Args:
         cost_models: Commission/fee/borrow models.
         slippage: Slippage model.
-        cost_scale: Multiplier on all costs (cost-sensitivity research).
     """
 
     name = "vectorized"
@@ -100,11 +99,9 @@ class VectorizedEngine:
         self,
         cost_models: Sequence[CostModel] = (),
         slippage: SlippageModel | None = None,
-        cost_scale: float = 1.0,
     ) -> None:
         self.cost_models = tuple(cost_models)
         self.slippage = slippage
-        self.cost_scale = cost_scale
 
     # ------------------------------------------------------------------ simulation
 
@@ -225,7 +222,7 @@ class VectorizedEngine:
         if self.slippage is not None:
             models.append((COST_SLIPPAGE, self.slippage))
         for category, model in models:
-            frac = np.nan_to_num(model.vectorized(ctx), nan=0.0) * self.cost_scale
+            frac = np.nan_to_num(model.vectorized(ctx), nan=0.0)
             if frac.shape != total.shape:
                 raise EngineError(f"Cost model '{category}' returned wrong shape")
             total += frac

@@ -18,7 +18,7 @@ class {cls}Params(CostParams):
 
 
 @register("cost_model", name="{name}", version="0.1.0", tags=["user"],
-          capabilities={{"engine:vectorized", "engine:event"}})
+          capabilities={{"engine:vectorized"}})
 class {cls}(CostModel):
     """Flat bps cost (vectorized and event forms)."""
 
@@ -29,7 +29,3 @@ class {cls}(CostModel):
     def vectorized(self, ctx: CostContext) -> FloatArray:
         """Cost as a fraction of equity, shape (T, N)."""
         return np.abs(ctx.trades) * self.params.bps * 1e-4
-
-    def commission(self, quantity: float, price: float, instrument: Instrument) -> float:
-        """Currency cost of one fill in the event engine."""
-        return abs(quantity) * price * instrument.multiplier * self.params.bps * 1e-4

@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   useCombine,
@@ -119,11 +119,21 @@ function CombinedPortfolio({
 }
 
 export function ComparePage() {
-  const { selected, toggle, setSelected, clear } = useCompareStore()
+  const { selected: stored, toggle, setSelected, clear } = useCompareStore()
   const [align, setAlign] = useState(false)
   const [metricKey, setMetricKey] = useState('sharpe')
   const allRuns = useRuns({ status: 'completed', limit: 1000 })
   const charts = useCompareCharts()
+  // the selection is persisted in the browser, so it outlives the runs it names: drop the
+  // ones the store no longer has instead of asking the API for a deleted run
+  const selected = useMemo(() => {
+    if (!allRuns.data) return stored
+    const known = new Set(allRuns.data.map((r) => r.id))
+    return stored.filter((id) => known.has(id))
+  }, [stored, allRuns.data])
+  useEffect(() => {
+    if (selected.length !== stored.length) setSelected(selected)
+  }, [selected, stored, setSelected])
   const table = useCompareMetrics(selected, align)
   const colors = useMemo(() => runColorMap(selected), [selected])
   const labels = useMemo(

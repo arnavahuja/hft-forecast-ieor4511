@@ -4,10 +4,8 @@ import { NavLink, Outlet } from 'react-router-dom'
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/data', label: 'Data' },
-  { to: '/lab', label: 'Strategy Lab' },
   { to: '/runs', label: 'Runs' },
   { to: '/compare', label: 'Compare' },
-  { to: '/research', label: 'Research' },
   { to: '/settings', label: 'Settings' },
 ] as const
 
@@ -33,7 +31,7 @@ export function Layout() {
               strokeLinejoin="round"
             />
           </svg>
-          <span className="text-sm font-semibold tracking-wide">Backbone</span>
+          <span className="text-sm font-semibold tracking-wide">hft-forecast</span>
         </div>
         <nav aria-label="Main" className="flex flex-1 flex-col gap-0.5 px-2">
           {NAV.map((item) => (

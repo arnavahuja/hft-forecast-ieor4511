@@ -40,6 +40,20 @@ const CANONICAL = [
   'dividend',
   'split_ratio',
 ] as const
+// Level-1 quote fields. Whatever is left unmapped is derived on import where it follows from
+// what is there: level 1 of the book is the quote, the quotes give the mid and the spread.
+const QUOTE = [
+  'bid',
+  'ask',
+  'bid_size',
+  'ask_size',
+  'mid',
+  'microprice',
+  'spread',
+  'spread_bps',
+  'n_quotes',
+  'is_stale',
+] as const
 const FREQUENCIES = [
   '1s',
   '5s',
@@ -204,6 +218,40 @@ function PullForm() {
   )
 }
 
+function FieldSelect({
+  id,
+  label,
+  value,
+  columns,
+  onChange,
+}: {
+  id: string
+  label: string
+  value: string | undefined
+  columns: string[]
+  onChange: (value: string) => void
+}) {
+  return (
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <Select id={id} value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
+        <option value="">\u2014</option>
+        {columns.map((c) => (
+          <option key={c}>{c}</option>
+        ))}
+      </Select>
+    </div>
+  )
+}
+
+function GroupHeading({ children }: { children: string }) {
+  return (
+    <h4 className="md:col-span-4 text-xs font-medium uppercase tracking-wide text-muted">
+      {children}
+    </h4>
+  )
+}
+
 function MappingEditor({
   preview,
   mapping,
@@ -214,7 +262,20 @@ function MappingEditor({
   onChange: (m: ImportMapping) => void
 }) {
   const columns = preview.columns
-  const used = new Set([mapping.timestamp, mapping.symbol, ...Object.values(mapping.columns ?? {})])
+  const book = mapping.book_columns ?? {}
+  const detectedLevels = Math.floor(Object.keys(book).length / 4)
+  const used = new Set([
+    mapping.timestamp,
+    mapping.symbol,
+    ...Object.values(mapping.columns ?? {}),
+    ...Object.values(book),
+  ])
+  const setColumn = (field: string, source: string) => {
+    const rest = Object.fromEntries(
+      Object.entries(mapping.columns ?? {}).filter(([k]) => k !== field),
+    )
+    onChange({ ...mapping, columns: source ? { ...rest, [field]: source } : rest })
+  }
   return (
     <div className="grid gap-3 md:grid-cols-4">
       <div>
@@ -260,27 +321,45 @@ function MappingEditor({
           onChange={(e) => onChange({ ...mapping, name: e.target.value })}
         />
       </div>
+      <GroupHeading>Bars</GroupHeading>
       {CANONICAL.map((field) => (
-        <div key={field}>
-          <Label htmlFor={`map-${field}`}>{field}</Label>
-          <Select
-            id={`map-${field}`}
-            value={mapping.columns?.[field] ?? ''}
-            onChange={(e) => {
-              const rest = Object.fromEntries(
-                Object.entries(mapping.columns ?? {}).filter(([k]) => k !== field),
-              )
-              const next = e.target.value ? { ...rest, [field]: e.target.value } : rest
-              onChange({ ...mapping, columns: next })
-            }}
-          >
-            <option value="">—</option>
-            {columns.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </Select>
-        </div>
+        <FieldSelect
+          key={field}
+          id={`map-${field}`}
+          label={field}
+          value={mapping.columns?.[field]}
+          columns={columns}
+          onChange={(source) => setColumn(field, source)}
+        />
       ))}
+      <GroupHeading>Quotes (level 1)</GroupHeading>
+      {QUOTE.map((field) => (
+        <FieldSelect
+          key={field}
+          id={`map-${field}`}
+          label={field}
+          value={mapping.columns?.[field]}
+          columns={columns}
+          onChange={(source) => setColumn(field, source)}
+        />
+      ))}
+      <GroupHeading>Order book</GroupHeading>
+      <div>
+        <Label htmlFor="map-book-levels">Book levels to import</Label>
+        <Input
+          id="map-book-levels"
+          type="number"
+          min={0}
+          value={mapping.book_levels ?? 0}
+          onChange={(e) => onChange({ ...mapping, book_levels: Number(e.target.value) || 0 })}
+        />
+      </div>
+      <p className="self-end pb-2 text-xs text-muted md:col-span-3">
+        {detectedLevels > 0
+          ? `${detectedLevels} level(s) found in the file. Level 1 fills bid, ask and the sizes when they are not mapped above.`
+          : 'No bid_px_1 / bid_sz_1 style columns found, so this file is level 1 at best.'}
+      </p>
+      <GroupHeading>How to read the file</GroupHeading>
       <div>
         <Label htmlFor="map-freq">Frequency</Label>
         <Select
@@ -293,6 +372,17 @@ function MappingEditor({
           {FREQUENCIES.map((f) => (
             <option key={f}>{f}</option>
           ))}
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="map-bar-label">Timestamps mark the bar</Label>
+        <Select
+          id="map-bar-label"
+          value={mapping.bar_label ?? 'end'}
+          onChange={(e) => onChange({ ...mapping, bar_label: e.target.value })}
+        >
+          <option value="end">end (right-closed)</option>
+          <option value="start">start (shifted to the end on import)</option>
         </Select>
       </div>
       <div>

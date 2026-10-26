@@ -4,18 +4,37 @@ import { expect, test } from '@playwright/test'
 test.skip(!process.env.SCREENSHOTS, 'set SCREENSHOTS=1 to capture screenshots')
 
 const OUT = process.env.SCREENSHOT_DIR ?? 'test-results/screenshots'
+const API = '/api/v1'
 
-test('capture pages', async ({ page }) => {
-  await page.goto('/lab')
-  await page.getByRole('button', { name: 'Reset' }).click()
-  await page.getByLabel('Source').selectOption('synthetic')
-  await page.getByLabel('Instruments (comma separated)').fill('AAA, BBB, CCC, DDD')
-  await page.getByLabel('Benchmark').fill('MKT')
-  await page.getByLabel('Start', { exact: true }).fill('2012-01-01')
-  await page.getByLabel('End', { exact: true }).fill('2022-12-31')
-  await page.screenshot({ path: `${OUT}/lab.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Run backtest' }).click()
-  await page.getByRole('link', { name: 'Open run →' }).click()
+test('capture pages', async ({ page, request }) => {
+  for (const [name, bps] of [
+    ['screenshot hold', 2],
+    ['screenshot hold cheap', 0],
+  ] as const) {
+    await request.post(`${API}/runs`, {
+      data: {
+        config: {
+          name,
+          data: {
+            source: 'synthetic',
+            dataset: 'gbm',
+            instruments: ['AAA', 'BBB', 'CCC', 'DDD'],
+            start: '2012-01-01',
+            end: '2022-12-31',
+          },
+          strategy: { name: 'buy_and_hold' },
+          costs: [{ name: 'bps_notional', params: { bps } }],
+          benchmark: 'MKT',
+        },
+      },
+    })
+  }
+  await page.goto('/runs')
+  const row = page.getByRole('link', { name: /screenshot hold cheap/ })
+  await expect(row).toBeVisible({ timeout: 60_000 })
+  await page.screenshot({ path: `${OUT}/runs.png`, fullPage: true })
+
+  await row.click()
   await expect(page.locator('canvas').first()).toBeVisible()
   await page.waitForTimeout(800)
   await page.screenshot({ path: `${OUT}/run-overview.png`, fullPage: true })
@@ -24,12 +43,8 @@ test('capture pages', async ({ page }) => {
     await page.waitForTimeout(1200)
     await page.screenshot({ path: `${OUT}/run-${tab.toLowerCase()}.png`, fullPage: true })
   }
-  await page.goto('/lab')
-  await page.getByLabel('Strategy', { exact: true }).selectOption('buy_and_hold')
-  await page.getByRole('button', { name: 'Run backtest' }).click()
-  await page.getByRole('link', { name: 'Open run →' }).click()
+
   await page.goto('/runs')
-  await page.screenshot({ path: `${OUT}/runs.png`, fullPage: true })
   await page.getByLabel('Select all').check()
   await page.getByRole('button', { name: 'Compare' }).click()
   await page.waitForTimeout(2500)

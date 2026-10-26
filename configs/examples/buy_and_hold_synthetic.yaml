@@ -16,7 +16,6 @@ slippage:
   params: {spread_bps: 4}
 benchmark: SYN_MKT
 execution:
-  engine: vectorized
   lag_bars: 1
   price: close
 experiment: examples
