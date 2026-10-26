@@ -76,6 +76,10 @@ def test_ml_pipeline_end_to_end(workspace):
     economic = _invoke("ml", "econ", run_id)
     assert "AAA" in economic.output and "pooled per-bar mean" in economic.output
 
+    impact = _invoke("ml", "impact", str(config), "--out", str(tmp_path / "impact.csv"))
+    assert "stock-days" in impact.output and "depth_scaling_slope" in impact.output
+    assert (tmp_path / "impact.csv").read_text().startswith("instrument,session")
+
     report = _invoke("ml", "compare", "--experiment", "h30s", "--out", str(tmp_path / "report"))
     assert "comparison.md" in report.output
     table = (tmp_path / "report" / "comparison.md").read_text()

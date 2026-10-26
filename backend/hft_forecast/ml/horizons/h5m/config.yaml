@@ -16,6 +16,9 @@ data:
 # manifest: sp50_2024h1_1min   # uncomment to read pulled TAQ bars instead
 features:
   - name: basic
+  - name: ofi            # Cont, Kukanov and Stoikov (2014); level 1 only
+    params:
+      windows: [1, 5, 10]   # 1, 5 and 10 minutes on this grid
 labels:
   dead_zone_bps: 3.0      # roughly the half spread at this horizon; a research choice
   drop_stale_targets: true

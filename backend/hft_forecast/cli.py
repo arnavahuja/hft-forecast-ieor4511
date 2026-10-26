@@ -394,6 +394,75 @@ def ml_run(
     typer.echo(f"results: {directory}")
 
 
+PAPER_INTERVAL_SECONDS = 600
+"""Cont, Kukanov and Stoikov regress over 10-minute intervals."""
+
+
+@ml_app.command("impact")
+def ml_impact(
+    config: Annotated[Path, typer.Argument(help="Experiment config", exists=True)],
+    interval_bars: Annotated[
+        int | None, typer.Option(help="Bars per interval (default: the paper's 10 minutes)")
+    ] = None,
+    out: Annotated[Path | None, typer.Option(help="Write the per-stock-day fits here")] = None,
+) -> None:
+    """Regress mid-price changes on order flow imbalance (Cont, Kukanov and Stoikov, 2014).
+
+    Contemporaneous, not a forecast: it measures how much of the move the best-quote order
+    flow accounts for, which is the ceiling for anything predicting from the same data.
+    """
+    import csv as csv_module
+
+    from hft_forecast.core.calendar import TradingCalendar
+    from hft_forecast.ml.datasets import fetch_bars, with_session_columns
+    from hft_forecast.ml.impact import ImpactFit, impact_summary, price_impact
+
+    services = _services()
+    cfg = _experiment(config, None, None)
+    seconds = cfg.horizon.grid.seconds or PAPER_INTERVAL_SECONDS
+    bars = interval_bars or max(PAPER_INTERVAL_SECONDS // seconds, 1)
+    calendar = TradingCalendar()
+    fits: list[ImpactFit] = []
+    for instrument in cfg.data.instruments:
+        frame = with_session_columns(fetch_bars(cfg, services.data, instrument), calendar)
+        found = price_impact(frame, bars)
+        fits.extend(found)
+        median = _median([f.r2 for f in found])
+        typer.echo(
+            f"  {instrument:<8} {len(found):>4} sessions   median R2 {median:.3f}   "
+            f"median beta {_median([f.beta for f in found]):.3e}"
+        )
+    if not fits:
+        typer.echo("no session had enough intervals to fit", err=True)
+        raise typer.Exit(1)
+    summary = impact_summary(fits)
+    typer.echo(
+        f"{summary['n_fits']} stock-days over {bars}-bar intervals ({bars * seconds / 60:.0f} min)"
+    )
+    for key in (
+        "median_r2",
+        "median_beta",
+        "median_beta_depth",
+        "share_positive_beta",
+        "share_significant",
+        "depth_scaling_slope",
+    ):
+        typer.echo(f"  {key:<22} {summary[key]:.4g}")
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with out.open("w", newline="") as handle:
+            writer = csv_module.DictWriter(handle, fieldnames=list(fits[0].as_row()))
+            writer.writeheader()
+            writer.writerows(f.as_row() for f in fits)
+        typer.echo(f"wrote {out}")
+
+
+def _median(values: list[float]) -> float:
+    import numpy as np
+
+    return float(np.nanmedian(values)) if values else float("nan")
+
+
 @ml_app.command("econ")
 def ml_econ(
     run_id: Annotated[str, typer.Argument(help="An ml run id")],
