@@ -17,8 +17,8 @@ cp .env.example .env
 make run          # API on http://127.0.0.1:8000, UI on http://127.0.0.1:5173
 ```
 
-Try it offline: in the Strategy Lab choose source **synthetic**, instruments `AAA, BBB, CCC`,
-benchmark `MKT`, and press **Run backtest**.
+Try it offline: `hftf run configs/examples/buy_and_hold_synthetic.yaml`, then open
+http://127.0.0.1:5173/runs. Work is driven from the command line; the front end reads.
 
 From the command line:
 
@@ -31,7 +31,7 @@ hftf run configs/examples/buy_and_hold_synthetic.yaml
 hftf data pull SPY QQQ --start 2015-01-01 --end 2024-12-31
 hftf data pull-taq --manifest sp50_2024h1_5s --symbols-file symbols.txt \
   --start 2024-01-02 --end 2024-06-28 --grid 5s
-hftf data import my_prices.csv
+hftf data import my_book.parquet     # level-1 or level-N book bars
 hftf new strategy my_strategy
 hftf plugins
 ```
@@ -40,13 +40,12 @@ hftf plugins
 
 | Area | Highlights |
 |---|---|
-| Data | WRDS (CRSP daily with delisting returns, S&P 500 point-in-time membership, TAQ NBBO quote bars and trade bars), Yahoo for daily benchmarks, local CSV/Parquet/Excel/Feather import with a mapping wizard, synthetic data. Versioned Parquet cache, DuckDB catalog, data quality reports |
-| Engines | Vectorized (closed-form drift, lag >= 1 enforced, open/close execution, rebalance schedules) and event-driven (market/limit/stop/stop-limit, TIF, partial fills, latency, fill models). Parity within 1e-10 at zero cost |
-| Pipeline | `buy_and_hold` reference strategy, three portfolio constructors (equal weight, signal proportional, quantile long/short), sizing and limit overlays, before/after reporting per overlay |
+| Data | WRDS (CRSP daily with delisting returns, S&P 500 point-in-time membership, TAQ NBBO quote bars and trade bars), Yahoo for daily benchmarks, local CSV/Parquet/Excel/Feather import of level-1 or level-N book files with a mapping wizard, synthetic data. Versioned Parquet cache, DuckDB catalog, data quality reports |
+| Engine | Vectorized: closed-form drift, lag >= 1 enforced, open/close execution, rebalance schedules, quoted-spread slippage |
+| Pipeline | `buy_and_hold` and `prediction_signal` strategies, three portfolio constructors (equal weight, signal proportional, quantile long/short), sizing and limit overlays, before/after reporting per overlay |
 | Analytics | Metric groups including deflated Sharpe, PSR and bootstrap CIs; charts, HTML tearsheet, CSV/Parquet export, comparison report, date-range brushing that recomputes metrics |
-| Research | Grid/random sweeps, walk-forward, Monte Carlo, cost/delay/capacity sensitivity, regime analysis, PBO (CSCV), locked test period |
 | ML | Session-guarded forward-return labels, causal feature sets with an automatic lookahead test, purged and embargoed walk-forward CV with uniqueness weights, three baselines plus two stubs, block-bootstrap metrics, DSR/PBO and one comparison table |
-| Front end | View-only for this project: data quality reports and economic-test runs. No new pages |
+| Front end | Read-only: the data catalog and quality reports, runs, run detail and Compare. Runs are created from the CLI |
 
 ## Layout
 
@@ -57,7 +56,7 @@ frontend/           React + Vite + TypeScript UI (generated API client in src/ap
 tests/              unit, integration, golden, fixtures (no network needed)
 user_plugins/       your plugins (auto-discovered, hot-reloaded in dev mode)
 templates/          one copyable example per plugin kind
-docs/               how-to guides, ADRs, phase log, performance notes
+docs/               how-to guides and ADRs
 configs/examples/   example run configs
 ```
 
@@ -75,7 +74,8 @@ Three horizon groups share one pipeline: **30 s** on a 5 s mid-price grid, **5 m
 Changing the **frozen interface** needs a PR reviewed by one person from each group:
 
 1. the canonical bar schema and `bar_label = "end"`
-2. `hftf data pull-taq` and the manifests — the only way data enters the repo
+2. `hftf data pull-taq` and the manifests, and the file import that mirrors them
+   (ADR 0009) — the two ways data enters the repo
 3. `HorizonSpec`, `LabelParams`, `make_labels`
 4. the `FeatureSet` base, its registry and the causality test
 5. `CVSpec`, `split`, `label_uniqueness`
@@ -118,8 +118,9 @@ separate, uncached source capped at 5 symbols x 20 sessions.
 
 ## Documentation
 
-- [How-to guides](docs/howto/README.md): add each kind of plugin
+- [How-to guides](docs/howto/README.md): add each kind of plugin, and
+  [bring your own bars](docs/howto/08-bring-your-own-bars.md) (level 1 or level 2)
 - [Architecture decisions](docs/adr/) — [ADR 0008](docs/adr/0008-hft-forecast-fork.md) records
   the decisions behind this fork
-- [Build phase log](docs/phases.md): what the upstream platform built (history)
-- [Performance](docs/performance.md)
+- [ADR 0010](docs/adr/0010-prune-to-the-forecast-comparison.md): what was removed from the
+  fork and why

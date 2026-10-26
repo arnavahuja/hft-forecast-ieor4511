@@ -1444,9 +1444,13 @@ export interface components {
      *         timestamp: Source column with dates/times.
      *         symbol: Source column with instrument ids (``None`` = single-instrument file).
      *         fixed_symbol: Instrument id to use when ``symbol`` is ``None``.
-     *         columns: Canonical field -> source column (open, high, low, close, volume, ...).
+     *         columns: Canonical field -> source column (open, high, low, close, bid, ask, ...).
+     *         book_levels: Depth of the order book to import (0 for level-1 or OHLCV files).
+     *         book_columns: Canonical book column (``bid_px_1``, ``bid_sz_1``, ...) -> source column.
      *         extra: Extra source columns to keep as fields (renamed to snake_case).
      *         frequency: Bar frequency.
+     *         bar_label: Whether the file's timestamps sit at the bar ``end`` or ``start``; a
+     *             start-labelled intraday file is shifted to the end convention on import.
      *         timezone: Timezone of naive timestamps in the file.
      *         datetime_format: Optional ``strptime`` format.
      *         adjustment: Whether prices are raw, split-adjusted or total-return adjusted.
@@ -1463,10 +1467,24 @@ export interface components {
       columns?: {
         [key: string]: string
       }
+      /**
+       * Book Levels
+       * @default 0
+       */
+      book_levels: number
+      /** Book Columns */
+      book_columns?: {
+        [key: string]: string
+      }
       /** Extra */
       extra?: string[]
       /** @default 1d */
       frequency: components['schemas']['Frequency']
+      /**
+       * Bar Label
+       * @default end
+       */
+      bar_label: string
       /**
        * Timezone
        * @default UTC

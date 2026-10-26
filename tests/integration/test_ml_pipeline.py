@@ -85,3 +85,53 @@ def test_ml_pipeline_end_to_end(workspace):
 
     # the economic runs are backtests under the same experiment, so they count as trials
     assert runner.invoke(app, ["data", "catalog"]).exit_code == 0
+
+
+def test_an_imported_file_feeds_an_experiment(data_service, tmp_path):
+    """The other way data arrives: a file on disk, mapped, then used as the experiment's source.
+
+    This is the path the horizon groups take when quote or book bars show up from a venue
+    rather than from the TAQ pull, so it has to reach ``build_dataset`` unchanged.
+    """
+    from datetime import date
+
+    from hft_forecast.core.run_config import DataSpec
+    from hft_forecast.core.types import DataRequest, Frequency
+    from hft_forecast.data.importer import guess_mapping
+    from hft_forecast.data.sources.synthetic import SyntheticSource
+    from hft_forecast.ml.base import H5M
+    from hft_forecast.ml.config import ExperimentConfig
+    from hft_forecast.ml.datasets import build_dataset, load_dataset, usable_rows
+
+    start, end = date(2024, 7, 1), date(2024, 7, 3)
+    bars = SyntheticSource().fetch(
+        DataRequest(
+            source="synthetic",
+            dataset="quotes",
+            instruments=("AAA", "BBB"),
+            start=start,
+            end=end,
+            frequency=Frequency.MIN1,
+        )
+    )
+    path = tmp_path / "venue_quotes.parquet"
+    bars.frame.write_parquet(path)
+    mapping = guess_mapping(bars.frame, "venue_quotes").model_copy(
+        update={"frequency": Frequency.MIN1}
+    )
+    record = data_service.import_file(path, mapping)
+
+    config = ExperimentConfig(
+        experiment="h5m",
+        horizon=H5M,
+        data=DataSpec(
+            source="local_file",
+            dataset=record.id,
+            instruments=["AAA", "BBB"],
+            start=start,
+            end=end,
+            frequency=Frequency.MIN1,
+        ),
+    )
+    frame = load_dataset(build_dataset(config, data_service))
+    assert usable_rows(frame).height > 0

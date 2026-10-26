@@ -26,7 +26,12 @@ from hft_forecast.core.registry import PluginKind, registry
 from hft_forecast.core.types import DataRequest, MarketData
 from hft_forecast.data.cache import ParquetCache
 from hft_forecast.data.catalog import Catalog, DatasetRecord
-from hft_forecast.data.importer import ImportMapping, apply_mapping, read_any
+from hft_forecast.data.importer import (
+    ImportMapping,
+    apply_mapping,
+    quote_metadata,
+    read_any,
+)
 from hft_forecast.data.normalize import normalize_frame
 from hft_forecast.data.validation import QualityReport, validate
 
@@ -322,9 +327,10 @@ class DataService:
         raw = read_any(path)
         canonical = apply_mapping(raw, mapping)
         dataset_id = dataset_id or f"{_slug(mapping.name or path.stem)}-{uuid.uuid4().hex[:6]}"
-        data = MarketData(canonical, mapping.frequency)
+        meta = quote_metadata(mapping, canonical.columns)
+        data = MarketData(canonical, mapping.frequency, metadata=meta)
         report = validate(data, self.calendar, raw=canonical)
-        deduped = MarketData(normalize_frame(canonical), mapping.frequency)
+        deduped = MarketData(normalize_frame(canonical), mapping.frequency, metadata=meta)
         target = self.paths.imports_dir / f"{dataset_id}.parquet"
         deduped.frame.write_parquet(target)
         saved = mapping.model_dump(mode="json")

@@ -3404,6 +3404,20 @@
             "type": "object",
             "title": "Columns"
           },
+          "book_levels": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Book Levels",
+            "default": 0
+          },
+          "book_columns": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Book Columns"
+          },
           "extra": {
             "items": {
               "type": "string"
@@ -3414,6 +3428,12 @@
           "frequency": {
             "$ref": "#/components/schemas/Frequency",
             "default": "1d"
+          },
+          "bar_label": {
+            "type": "string",
+            "pattern": "^(end|start)$",
+            "title": "Bar Label",
+            "default": "end"
           },
           "timezone": {
             "type": "string",
@@ -3446,7 +3466,7 @@
           "timestamp"
         ],
         "title": "ImportMapping",
-        "description": "How to convert a user file to the canonical schema.\n\nAttributes:\n    timestamp: Source column with dates/times.\n    symbol: Source column with instrument ids (``None`` = single-instrument file).\n    fixed_symbol: Instrument id to use when ``symbol`` is ``None``.\n    columns: Canonical field -> source column (open, high, low, close, volume, ...).\n    extra: Extra source columns to keep as fields (renamed to snake_case).\n    frequency: Bar frequency.\n    timezone: Timezone of naive timestamps in the file.\n    datetime_format: Optional ``strptime`` format.\n    adjustment: Whether prices are raw, split-adjusted or total-return adjusted.\n    name: Display name of the dataset."
+        "description": "How to convert a user file to the canonical schema.\n\nAttributes:\n    timestamp: Source column with dates/times.\n    symbol: Source column with instrument ids (``None`` = single-instrument file).\n    fixed_symbol: Instrument id to use when ``symbol`` is ``None``.\n    columns: Canonical field -> source column (open, high, low, close, bid, ask, ...).\n    book_levels: Depth of the order book to import (0 for level-1 or OHLCV files).\n    book_columns: Canonical book column (``bid_px_1``, ``bid_sz_1``, ...) -> source column.\n    extra: Extra source columns to keep as fields (renamed to snake_case).\n    frequency: Bar frequency.\n    bar_label: Whether the file's timestamps sit at the bar ``end`` or ``start``; a\n        start-labelled intraday file is shifted to the end convention on import.\n    timezone: Timezone of naive timestamps in the file.\n    datetime_format: Optional ``strptime`` format.\n    adjustment: Whether prices are raw, split-adjusted or total-return adjusted.\n    name: Display name of the dataset."
       },
       "ImportPreviewOut": {
         "properties": {

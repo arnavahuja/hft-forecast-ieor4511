@@ -7,7 +7,7 @@ import polars as pl
 import pytest
 
 from hft_forecast.core.errors import ConfigError
-from hft_forecast.core.types import BAR_LABEL_KEY, MarketData
+from hft_forecast.core.types import BAR_LABEL_KEY, Frequency, MarketData
 from hft_forecast.ml.base import LABEL_VALID, SECONDS_SINCE_OPEN, SESSION_ID
 from hft_forecast.ml.datasets import (
     build_dataset,
@@ -71,19 +71,40 @@ def test_windows_never_span_a_session():
     assert np.array_equal(out[4], x[3:5])
 
 
-def test_a_one_minute_grid_still_produces_usable_rows(data_service, experiment):
-    """The coarse-volatility window must not collapse when the grids coincide."""
-    from hft_forecast.core.types import Frequency
-    from hft_forecast.ml.base import H5M
+@pytest.mark.parametrize(
+    ("grid", "seconds", "vol_windows"),
+    [
+        (Frequency.S30, 300, [20, 100]),
+        (Frequency.MIN1, 300, [20, 100]),
+        (Frequency.MIN5, 1800, [5, 20]),
+    ],
+)
+def test_every_grid_produces_usable_rows(data_service, experiment, grid, seconds, vol_windows):
+    """One pipeline, three grids: the horizon and the window lengths are all that move.
+
+    The windows are counted in bars, so a 100-bar volatility feature is eight minutes on a
+    5 s grid and more than a whole session on a 5 min one; a coarse grid shrinks them.
+    """
+    from hft_forecast.core.run_config import PluginRef
+    from hft_forecast.ml.base import HorizonSpec
     from hft_forecast.ml.datasets import null_report
 
-    minute = experiment.model_copy(
+    config = experiment.model_copy(
         update={
-            "horizon": H5M,
-            "data": experiment.data.model_copy(update={"frequency": Frequency.MIN1}),
+            "horizon": HorizonSpec(name=f"h{seconds}s", seconds=seconds, grid=grid),
+            "data": experiment.data.model_copy(update={"frequency": grid}),
+            "features": [PluginRef(name="basic", params={"vol_windows": vol_windows})],
         }
     )
-    frame = load_dataset(build_dataset(minute, data_service))
-    nulls = null_report(frame)
-    assert nulls["f_vol_coarse_completed"] < 0.5
+    frame = load_dataset(build_dataset(config, data_service))
+    assert null_report(frame)["f_vol_coarse_completed"] < 0.5
     assert usable_rows(frame).height > 0
+
+
+def test_bars_on_the_wrong_grid_are_refused(quote_bars, experiment):
+    """An imported file carries its own bar size, so the grid is checked, not assumed."""
+    from hft_forecast.ml.datasets import _check_bars
+
+    data = MarketData(quote_bars, Frequency.MIN1, metadata={BAR_LABEL_KEY: "end"})
+    with pytest.raises(ConfigError, match="1min"):
+        _check_bars(data, experiment.horizon)
