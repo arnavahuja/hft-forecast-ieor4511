@@ -1,0 +1,9 @@
+data/
+.env
+*.pgpass
+pgpass.conf
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+*.parquet.tmp

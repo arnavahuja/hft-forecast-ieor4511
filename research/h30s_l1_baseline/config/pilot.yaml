@@ -1,0 +1,35 @@
+# Phase A pilot configuration. Paths are relative to the repo root.
+data_dir: data
+
+dev_date: "2025-12-10"          # full S&P 500 raw day kept locally for development
+
+dates:                          # pilot month (trading days only; holidays skipped automatically)
+  start: "2025-03-03"
+  end: "2025-03-31"
+
+universe:
+  # CTA ticker format; mapped to TAQ sym_root/sym_suffix via the TAQ master file (mastm.cta_symbol)
+  tickers: [AAPL, MSFT, NVDA, AMZN, GOOGL, META, JPM, BAC, WFC, XOM, CVX, JNJ, PFE, MRK, KO,
+            PEP, PG, WMT, HD, INTC, CSCO, T, VZ, F, KMI, AMD, AVGO, TSLA, BRK.B]
+  benchmarks: [SPY]             # stored separately; not prediction targets
+
+download:
+  session: ["09:30:00", "16:00:00"]   # raw data window (SIP time)
+  datasets: [nbbo, trades]
+
+sample:
+  start: "09:35:00"             # 1-second grid
+  end: "15:55:00"
+  close: "16:00:00"             # labels may not cross this
+
+clean:
+  quote_conditions_keep: [A, B, H, O, R, W]        # Holden & Jacobsen (2014) normal quote conditions
+  max_spread_bps: 1000                             # sanity cap (dev-day max for pilot names: 202 bps)
+  trade_corr_keep: ["00"]                          # uncorrected trades only
+  trade_scond_allowed_chars: ["@", "F", "I", " "]  # regular, ISO, odd lot (null = regular); any other code -> drop
+  plot_symbols: [AAPL, F]                          # Step 3 sanity plots (small-tick vs large-tick)
+
+horizons_s: [5, 10, 30, 60]
+primary_horizon_s: 30
+windows_s: [1, 2, 5, 10, 30, 60, 120, 300, 600]
+tick_size: 0.01

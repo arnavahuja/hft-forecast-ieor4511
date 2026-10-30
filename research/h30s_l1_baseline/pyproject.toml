@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hft-h30s-l1-baseline"
+version = "0.1.0"
+description = "IEOR 4511 h30s group - Phase A baseline: 30s mid-price prediction from TAQ L1 data"
+requires-python = ">=3.11"
+dependencies = [
+    "polars>=1.30",
+    "pyarrow>=15",
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "sqlalchemy>=2.0",
+    "psycopg2-binary>=2.9",
+    "pyyaml>=6",
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = ["wrds_login"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
