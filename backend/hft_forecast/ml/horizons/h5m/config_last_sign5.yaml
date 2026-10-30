@@ -1,0 +1,34 @@
+# A 5-minute momentum baseline on the same dataset and labels as config.yaml.
+experiment: h5m
+name: h5m last-sign-5 baseline
+horizon:
+  name: h5m
+  seconds: 300
+  grid: 1min
+data:
+  source: synthetic
+  dataset: quotes
+  instruments: [AAA, BBB]
+  start: 2024-01-02
+  end: 2024-06-28
+  frequency: 1min
+features:
+  - name: basic
+    params:
+      vol_windows: [15, 30]
+labels:
+  dead_zone_bps: 3.0
+  drop_stale_targets: true
+  warmup_seconds: 60
+  cooldown_seconds: 60
+cv:
+  train_sessions: 40
+  test_sessions: 10
+  anchored: false
+  purge: true
+  min_train_rows: 1000
+model:
+  name: last_sign
+  params:
+    column: f_logret_5
+seed: 42

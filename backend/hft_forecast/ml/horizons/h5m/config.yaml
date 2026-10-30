@@ -11,11 +11,13 @@ data:
   dataset: quotes
   instruments: [AAA, BBB]
   start: 2024-01-02
-  end: 2024-06-28   # 124 sessions: 40 train + 10 test leaves 8 folds
+  end: 2024-06-28   # 124 sessions: 8 full 10-session folds plus a 4-session tail
   frequency: 1min
 # manifest: sp50_2024h1_1min   # uncomment to read pulled TAQ bars instead
 features:
   - name: basic
+    params:
+      vol_windows: [15, 30]
 labels:
   dead_zone_bps: 3.0      # roughly the half spread at this horizon; a research choice
   drop_stale_targets: true
