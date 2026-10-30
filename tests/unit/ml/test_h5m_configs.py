@@ -9,7 +9,7 @@ H5M_CONFIG_DIR = (
 )
 
 
-def test_h5m_baseline_configs_share_data_and_features() -> None:
+def test_h5m_synthetic_baseline_configs_share_data_and_features() -> None:
     ridge = ExperimentConfig.load(H5M_CONFIG_DIR / "config.yaml")
     last_sign = ExperimentConfig.load(H5M_CONFIG_DIR / "config_last_sign5.yaml")
 
@@ -25,3 +25,19 @@ def test_h5m_baseline_configs_share_data_and_features() -> None:
     assert last_sign.model.name == "last_sign"
     assert last_sign.model.params["column"] == "f_logret_5"
     assert ridge.cv.min_train_rows == last_sign.cv.min_train_rows == 1000
+
+
+def test_h5m_taq_config_uses_fixed_manifest_and_point_in_time_universe() -> None:
+    taq = ExperimentConfig.load(H5M_CONFIG_DIR / "config_taq.yaml")
+
+    assert taq.experiment == "h5m"
+    assert taq.manifest == "sp50_2024h1_1min"
+    assert taq.data.source == "wrds_taq"
+    assert taq.data.dataset == "taq_nbbo_bars"
+    assert taq.data.frequency.value == "1min"
+    assert taq.data.start.isoformat() == "2024-01-02"
+    assert taq.data.end.isoformat() == "2024-06-28"
+    assert len(taq.data.instruments) == 50
+    assert len(set(taq.data.instruments)) == 50
+    assert taq.features[0].params["vol_windows"] == [15, 30]
+    assert taq.cv.min_train_rows == 20_000

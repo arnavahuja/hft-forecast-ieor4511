@@ -1,0 +1,87 @@
+# Fixed 2024-01-02 point-in-time S&P 500 top-50 universe; data stays in local WRDS storage.
+experiment: h5m
+name: h5m TAQ NBBO baseline
+horizon:
+  name: h5m
+  seconds: 300
+  grid: 1min
+data:
+  source: wrds_taq
+  dataset: taq_nbbo_bars
+  instruments:
+    - AAPL
+    - MSFT
+    - AMZN
+    - NVDA
+    - GOOGL
+    - GOOG
+    - TSLA
+    - META
+    - LLY
+    - AVGO
+    - UNH
+    - JPM
+    - BRK
+    - WMT
+    - XOM
+    - V
+    - MA
+    - JNJ
+    - PG
+    - HD
+    - COST
+    - MRK
+    - ORCL
+    - ABBV
+    - CVX
+    - BAC
+    - ADBE
+    - KO
+    - CRM
+    - PEP
+    - AMD
+    - ACN
+    - MCD
+    - TMO
+    - CSCO
+    - NFLX
+    - INTC
+    - LIN
+    - TMUS
+    - ABT
+    - WFC
+    - DHR
+    - CMCSA
+    - INTU
+    - PFE
+    - DIS
+    - VZ
+    - AMGN
+    - QCOM
+    - MS
+  start: 2024-01-02
+  end: 2024-06-28
+  frequency: 1min
+manifest: sp50_2024h1_1min
+features:
+  - name: basic
+    params:
+      vol_windows: [15, 30]
+labels:
+  dead_zone_bps: 3.0
+  drop_stale_targets: true
+  warmup_seconds: 60
+  cooldown_seconds: 60
+cv:
+  train_sessions: 40
+  test_sessions: 10
+  anchored: false
+  purge: true
+  min_train_rows: 20000
+model:
+  name: logit_ridge
+seed: 42
+notes: >
+  Fixed 50-name universe selected from CRSP S&P 500 point-in-time members on
+  2024-01-02, ranked by same-day market capitalization. Selection details are
+  stored locally in sp500_top50_20240102_selection.csv.

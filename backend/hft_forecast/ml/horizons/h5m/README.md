@@ -12,11 +12,14 @@ not evidence of predictive performance on real market data.
   windows.
 - `config_last_sign5.yaml`: `last_sign` using `f_logret_5`, the five-bar return on the 1-minute
   grid.
+- `config_taq.yaml`: the same `logit_ridge` baseline configured for the local
+  `sp50_2024h1_1min` WRDS TAQ manifest and a fixed 50-name point-in-time universe.
 
-Both configs deliberately share their data, labels, features and CV settings, so their
-`dataset_hash` is identical. Their configured `min_train_rows` is suitable for the synthetic
-baseline; revisit it when switching to the actual TAQ universe. Do not uncomment or invent a
-manifest until `sp50_2024h1_1min` is available locally and its instrument list is confirmed.
+The synthetic configs deliberately share their data, labels, features and CV settings, so their
+`dataset_hash` is identical. The TAQ config is separate and requires the complete local
+manifest; it is not expected to work until the download finishes. Its universe is selected
+from historical S&P 500 members on 2024-01-02 and ranked by CRSP market capitalization on that
+date. This fixed point-in-time sample does not include constituents added later in the period.
 
 No deep-learning model or feature research is included in this branch foundation.
 
@@ -45,15 +48,31 @@ hftf ml build-dataset backend/hft_forecast/ml/horizons/h5m/config.yaml
 hftf ml run backend/hft_forecast/ml/horizons/h5m/config.yaml
 ```
 
-The dataset cache and runs go under a temporary directory, separate from the default `data/`
-research store. The run writes out-of-sample predictions and reports metrics for
+The synthetic dataset cache and runs go under a temporary directory, separate from the default
+`data/` research store. The run writes out-of-sample predictions and reports metrics for
 `logit_ridge`, `zero` and `last_sign` on identical rows. To explicitly run the five-bar
 momentum config instead, pass `config_last_sign5.yaml`; that is a separate trial in experiment
 `h5m`. Run `econ` only after a successful run and retain all trial records.
 
-When the shared TAQ manifest and its symbols are available, prepare a separate real-data config
-or update these configs with the verified instrument list and manifest. Keep an offline config
-available for repeatable development.
+## Running with local WRDS TAQ data
+
+The TAQ cache, manifest, and raw downloaded data are local research data, not Git files. The
+checked-in TAQ config records only the experiment settings and selected tickers. In PowerShell,
+point the project at the same external data directory used by `pull-taq`. The WRDS library may
+create its password file under `%APPDATA%\postgresql\pgpass.conf` on Windows, so set
+`PGPASSFILE` for each shell if that is where the file was created:
+
+```powershell
+$env:PYTHONUTF8 = "1"
+$env:HFTF_DATA_DIR = "E:\4511_5min\wrds_taq"
+$env:PGPASSFILE = Join-Path $env:APPDATA "postgresql\pgpass.conf"
+hftf ml build-dataset backend/hft_forecast/ml/horizons/h5m/config_taq.yaml
+hftf ml run backend/hft_forecast/ml/horizons/h5m/config_taq.yaml
+```
+
+The manifest must be complete before building the dataset. On another computer, first obtain
+the data through its authorized WRDS account (or arrange an institution-approved data transfer);
+do not push Parquet data, credentials, or machine-specific manifest paths to GitHub.
 
 Install dependencies once per environment; skip the install command above if already installed.
 The project requires Python 3.12 or newer.
