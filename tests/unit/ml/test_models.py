@@ -99,7 +99,8 @@ def test_stubs_say_what_is_missing(name, sample):
 
 
 def test_the_registry_reports_what_it_has():
-    assert {"zero", "last_sign", "logit_ridge", "gbm", "torch_seq"} == set(MODELS.names())
+    # the shipped models are always there; groups may register more (ml/models/, user_plugins)
+    assert {"zero", "last_sign", "logit_ridge", "gbm", "torch_seq"} <= set(MODELS.names())
     assert MODELS.get("logit_ridge").label == "logit_ridge@1.0.0"
     with pytest.raises(PluginNotFoundError):
         MODELS.get("nope")
