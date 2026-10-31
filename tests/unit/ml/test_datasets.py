@@ -108,3 +108,51 @@ def test_bars_on_the_wrong_grid_are_refused(quote_bars, experiment):
     data = MarketData(quote_bars, Frequency.MIN1, metadata={BAR_LABEL_KEY: "end"})
     with pytest.raises(ConfigError, match="1min"):
         _check_bars(data, experiment.horizon)
+
+
+def test_load_bars_slices_each_manifest_entry_to_its_own_month(tmp_path):
+    """The cache grows one file per instrument, so a monthly entry's file can hold earlier
+    months too; every bar must still come back exactly once."""
+    from datetime import UTC, datetime, timedelta
+
+    from hft_forecast.data.manifest import Manifest, ManifestEntry
+    from hft_forecast.ml.datasets import load_bars
+
+    def bars(day: datetime) -> pl.DataFrame:  # three 5 s bars from 14:30:05 UTC (09:30:05 NY)
+        stamps = [day + timedelta(seconds=5 * (i + 1)) for i in range(3)]
+        return pl.DataFrame({"timestamp": stamps, "mid": [1.0, 2.0, 3.0]}).with_columns(
+            pl.col("timestamp").dt.cast_time_unit("us")
+        )
+
+    jan, feb = datetime(2024, 1, 31, 14, 30, tzinfo=UTC), datetime(2024, 2, 1, 14, 30, tzinfo=UTC)
+    v1, v2 = tmp_path / "v0001.parquet", tmp_path / "v0002.parquet"
+    bars(jan).write_parquet(v1)
+    # the extended cache version, which may also store the columns in another order
+    pl.concat([bars(jan), bars(feb)]).select("mid", "timestamp").write_parquet(v2)
+    manifest = Manifest(
+        name="m",
+        source="wrds_taq",
+        frequency="5s",
+        entries=[
+            ManifestEntry(
+                instrument="X",
+                dataset="taq_nbbo_bars",
+                start="2024-01-02",
+                end="2024-01-31",
+                rows=3,
+                path=str(v1),
+            ),
+            ManifestEntry(
+                instrument="X",
+                dataset="taq_nbbo_bars",
+                start="2024-02-01",
+                end="2024-02-29",
+                rows=3,
+                path=str(v2),
+            ),
+        ],
+    )
+    out = load_bars(manifest, "X").collect()
+    assert out.height == 6
+    assert out["timestamp"].is_unique().all()
+    assert out.columns == ["mid", "timestamp"]  # sorted, whatever order the files used

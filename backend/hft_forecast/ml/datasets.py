@@ -35,20 +35,33 @@ log = structlog.get_logger(__name__)
 
 FEATURES_DIR: Final = "features"
 DATASET_META: Final = "dataset.json"
+SESSION_TZ: Final = "America/New_York"
 
 
 def load_bars(manifest: Manifest, instrument: str, dataset: str = "taq_nbbo_bars") -> pl.LazyFrame:
     """Scan one instrument's partitions of a manifest.
 
+    The cache keeps one growing file per instrument and dataset, so the file a monthly entry
+    points to can also hold every earlier month. Each entry is therefore sliced to its own
+    session dates (New York time) before the partitions are stacked. Cache versions can also
+    store the same columns in a different order, so partitions are aligned by name and the
+    result has sorted columns: every instrument's frame, and its feature file, then stack.
+
     Raises:
         DataError: If the manifest holds nothing for that instrument and dataset.
     """
-    files = [
-        e.path for e in manifest.entries if e.instrument == instrument and e.dataset == dataset
-    ]
-    if not files:
+    entries = [e for e in manifest.entries if e.instrument == instrument and e.dataset == dataset]
+    if not entries:
         raise DataError(f"Manifest '{manifest.name}' has no {dataset} for '{instrument}'")
-    return pl.scan_parquet(files).sort(C.TIMESTAMP)
+    session_day = pl.col(C.TIMESTAMP).dt.convert_time_zone(SESSION_TZ).dt.date()
+    parts = [
+        pl.scan_parquet(e.path).filter(
+            session_day.is_between(pl.lit(e.start).str.to_date(), pl.lit(e.end).str.to_date())
+        )
+        for e in entries
+    ]
+    bars = pl.concat(parts, how="diagonal_relaxed")
+    return bars.select(sorted(bars.collect_schema().names())).sort(C.TIMESTAMP)
 
 
 def with_session_columns(frame: pl.DataFrame, calendar: TradingCalendar) -> pl.DataFrame:
