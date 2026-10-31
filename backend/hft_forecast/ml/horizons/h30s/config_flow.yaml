@@ -1,0 +1,38 @@
+# Owned by the h30s group. Same data, labels and CV as config.yaml, plus the h30s order-flow
+# feature set. Run with --model logit_ridge (linear) or --model lgbm (ml/models/h30s_lgbm.py).
+experiment: h30s
+name: h30s basic + order flow
+horizon:
+  name: h30s
+  seconds: 30
+  grid: 5s
+data:
+  source: wrds_taq
+  dataset: taq_nbbo_bars
+  # 28 large caps (symbols_pilot28.txt). GOOG stands in for GOOGL and BRK.B is left out:
+  # pull-taq only reads symbols without a TAQ suffix (sym_suffix is null).
+  instruments: [AAPL, AMD, AMZN, AVGO, BAC, CSCO, CVX, F, GOOG, HD, INTC, JNJ, JPM, KMI,
+                KO, META, MRK, MSFT, NVDA, PEP, PFE, PG, T, TSLA, VZ, WFC, WMT, XOM]
+  start: 2024-01-02
+  end: 2024-06-28   # 124 sessions: 40 train + 10 test leaves 8 folds
+  frequency: 5s
+manifest: pilot28_2024h1_5s   # hftf data pull-taq --manifest pilot28_2024h1_5s --grid 5s ...
+# For an offline smoke test use: source: synthetic, dataset: quotes, instruments: [AAA, BBB]
+# and comment out `manifest`.
+features:
+  - name: basic
+  - name: h30s_flow       # OFI, imbalance persistence, tick regime, intra-bar (ml/features/h30s_flow.py)
+labels:
+  dead_zone_bps: 1.0      # roughly the half spread at this horizon; a research choice
+  drop_stale_targets: true
+  warmup_seconds: 60
+  cooldown_seconds: 60
+cv:
+  train_sessions: 40
+  test_sessions: 10
+  anchored: false
+  purge: true
+  min_train_rows: 1000
+model:
+  name: logit_ridge
+seed: 42
