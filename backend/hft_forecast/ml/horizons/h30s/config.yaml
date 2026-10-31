@@ -7,13 +7,18 @@ horizon:
   seconds: 30
   grid: 5s
 data:
-  source: synthetic        # replace with the manifest once the TAQ pull is done
-  dataset: quotes
-  instruments: [AAA, BBB]
+  source: wrds_taq
+  dataset: taq_nbbo_bars
+  # 28 large caps (symbols_pilot28.txt). GOOG stands in for GOOGL and BRK.B is left out:
+  # pull-taq only reads symbols without a TAQ suffix (sym_suffix is null).
+  instruments: [AAPL, AMD, AMZN, AVGO, BAC, CSCO, CVX, F, GOOG, HD, INTC, JNJ, JPM, KMI,
+                KO, META, MRK, MSFT, NVDA, PEP, PFE, PG, T, TSLA, VZ, WFC, WMT, XOM]
   start: 2024-01-02
   end: 2024-06-28   # 124 sessions: 40 train + 10 test leaves 8 folds
   frequency: 5s
-# manifest: sp50_2024h1_5s   # uncomment to read pulled TAQ bars instead
+manifest: pilot28_2024h1_5s   # hftf data pull-taq --manifest pilot28_2024h1_5s --grid 5s ...
+# For an offline smoke test use: source: synthetic, dataset: quotes, instruments: [AAA, BBB]
+# and comment out `manifest`.
 features:
   - name: basic
 labels:
