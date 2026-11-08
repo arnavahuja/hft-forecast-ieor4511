@@ -46,3 +46,9 @@ Holdout (2024H2): the T3-T8 pipeline with unchanged settings, run once, logged s
 - Reversal (-f_logret_5): IC 0.011 at lag 0, 0.006 at lag 1, 0.004 at lag 2 (slow decay).
 - T1 at lag 1: cross-sectional IC 0.003; cost-free 0.005 bps per trade vs 2.34 bps round trip.
 - Figures: figures/latency_ic.png, figures/latency_pnl.png (reports/latency_curve.csv).
+- T3 (label lag 1): cross-sectional IC 0.0054 vs T1 0.0031 on the same tradeable target;
+  latency profile turns from a cliff into a slope (learns slow signals instead of imbalance).
+- T4 (+ order flow): cross-sectional IC 0.0066; IC at lag 0 is 0.0008, peak at lag 1 (0.0059).
+- T5 (lgbm, default h30s params, untuned by design): IC 0.0026 but highest accuracy 0.3931;
+  negative IC at lag 4-5 (-0.0034): likely overfitting. Pre-stated expectation (|T5-T4| < 0.002) was wrong.
+- All t-statistics above are per minute (overlapping windows); day-level t in eval_h5m.
