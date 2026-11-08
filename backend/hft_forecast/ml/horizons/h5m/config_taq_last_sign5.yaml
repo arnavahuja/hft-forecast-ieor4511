@@ -1,0 +1,49 @@
+# Same data, labels, features and folds as config_taq.yaml; the model is 5-minute momentum.
+# h5m on REAL data: WRDS TAQ 1-minute NBBO bars, 47 large S&P 500 stocks, 2024 H1.
+#
+# Reads the bars straight from the pull cache (HFTF_DATA_DIR=E:\4511_5min\wrds_taq).
+# The `manifest:` route is deliberately NOT used: the current shared `load_bars` scans every
+# manifest entry, and with the cumulative cache files that reads each month several times
+# (see scripts/check_data.py, "Manifest check"). Through the cache each instrument is read once.
+#
+# BRK, GOOGL and CMCSA are left out: in TAQ their symbols carry a suffix (BRK B, GOOG L, CMCS A)
+# and the shared query keeps only rows with an empty suffix, so they return no quotes.
+# Run `hftf ml build-dataset` only after the pull has finished for every instrument listed
+# here; a missing month would otherwise be fetched from WRDS on the spot.
+experiment: h5m
+name: h5m taq last_sign f_logret_5
+horizon:
+  name: h5m
+  seconds: 300
+  grid: 1min
+data:
+  source: wrds_taq
+  dataset: taq_nbbo_bars
+  instruments: [AAPL, ABBV, ABT, ACN, ADBE, AMD, AMGN, AMZN, AVGO, BAC, COST, CRM, CSCO, CVX,
+                DHR, DIS, GOOG, HD, INTC, INTU, JNJ, JPM, KO, LIN, LLY, MA, MCD, META, MRK, MS,
+                MSFT, NFLX, NVDA, ORCL, PEP, PFE, PG, QCOM, TMO, TMUS, TSLA, UNH, V, VZ, WFC,
+                WMT, XOM]
+  start: 2024-01-02
+  end: 2024-06-28     # 124 sessions: 40 train + 10 test, 8 walk-forward folds
+  frequency: 1min
+features:
+  - name: basic
+    params:
+      vol_windows: [15, 30]
+labels:
+  dead_zone_bps: 3.0
+  drop_stale_targets: true
+  warmup_seconds: 60
+  cooldown_seconds: 60
+cv:
+  train_sessions: 40
+  test_sessions: 10
+  anchored: false
+  purge: true
+  min_train_rows: 20000
+model:
+  name: last_sign
+  params:
+    column: f_logret_5
+seed: 42
+tags: [taq, real-data]

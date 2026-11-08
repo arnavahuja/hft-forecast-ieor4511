@@ -1,6 +1,16 @@
-# Fixed 2024-01-02 point-in-time S&P 500 top-50 universe; data stays in local WRDS storage.
+# h5m on REAL data: WRDS TAQ 1-minute NBBO bars, 47 large S&P 500 stocks, 2024 H1.
+#
+# Reads the bars straight from the pull cache (HFTF_DATA_DIR=E:\4511_5min\wrds_taq).
+# The `manifest:` route is deliberately NOT used: the current shared `load_bars` scans every
+# manifest entry, and with the cumulative cache files that reads each month several times
+# (see scripts/check_data.py, "Manifest check"). Through the cache each instrument is read once.
+#
+# BRK, GOOGL and CMCSA are left out: in TAQ their symbols carry a suffix (BRK B, GOOG L, CMCS A)
+# and the shared query keeps only rows with an empty suffix, so they return no quotes.
+# Run `hftf ml build-dataset` only after the pull has finished for every instrument listed
+# here; a missing month would otherwise be fetched from WRDS on the spot.
 experiment: h5m
-name: h5m TAQ NBBO baseline
+name: h5m taq logit_ridge basic(15,30)
 horizon:
   name: h5m
   seconds: 300
@@ -8,61 +18,13 @@ horizon:
 data:
   source: wrds_taq
   dataset: taq_nbbo_bars
-  instruments:
-    - AAPL
-    - MSFT
-    - AMZN
-    - NVDA
-    - GOOGL
-    - GOOG
-    - TSLA
-    - META
-    - LLY
-    - AVGO
-    - UNH
-    - JPM
-    - BRK
-    - WMT
-    - XOM
-    - V
-    - MA
-    - JNJ
-    - PG
-    - HD
-    - COST
-    - MRK
-    - ORCL
-    - ABBV
-    - CVX
-    - BAC
-    - ADBE
-    - KO
-    - CRM
-    - PEP
-    - AMD
-    - ACN
-    - MCD
-    - TMO
-    - CSCO
-    - NFLX
-    - INTC
-    - LIN
-    - TMUS
-    - ABT
-    - WFC
-    - DHR
-    - CMCSA
-    - INTU
-    - PFE
-    - DIS
-    - VZ
-    - AMGN
-    - QCOM
-    - MS
+  instruments: [AAPL, ABBV, ABT, ACN, ADBE, AMD, AMGN, AMZN, AVGO, BAC, COST, CRM, CSCO, CVX,
+                DHR, DIS, GOOG, HD, INTC, INTU, JNJ, JPM, KO, LIN, LLY, MA, MCD, META, MRK, MS,
+                MSFT, NFLX, NVDA, ORCL, PEP, PFE, PG, QCOM, TMO, TMUS, TSLA, UNH, V, VZ, WFC,
+                WMT, XOM]
   start: 2024-01-02
-  end: 2024-06-28
+  end: 2024-06-28     # 124 sessions: 40 train + 10 test, 8 walk-forward folds
   frequency: 1min
-manifest: sp50_2024h1_1min
 features:
   - name: basic
     params:
@@ -81,7 +43,4 @@ cv:
 model:
   name: logit_ridge
 seed: 42
-notes: >
-  Fixed 50-name universe selected from CRSP S&P 500 point-in-time members on
-  2024-01-02, ranked by same-day market capitalization. Selection details are
-  stored locally in sp500_top50_20240102_selection.csv.
+tags: [taq, real-data]
