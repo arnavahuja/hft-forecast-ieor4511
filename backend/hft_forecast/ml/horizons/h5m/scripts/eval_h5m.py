@@ -1,7 +1,7 @@
 """One evaluation table for every h5m trial, with day-level statistics. Not a trial (no fitting).
 
-Target (every trial, same definition): the tradeable 5-minute return
-    r = log mid(t+6) - log mid(t+1), in bps         (decide at t, fill at t+1, hold 5 bars)
+Target (default lag 1): the tradeable 5-minute return
+    r = log mid(t+lag+5) - log mid(t+lag), in bps
 
 For each trial and for BOTH model heads
     s_ret  = y_hat_logret        the return head   (primary score, fixed in advance)
@@ -24,7 +24,9 @@ usage (from the repository root, environment active):
     python backend/hft_forecast/ml/horizons/h5m/scripts/eval_h5m.py --selftest
     python backend/hft_forecast/ml/horizons/h5m/scripts/eval_h5m.py ^
         T1=config_taq.yaml:a569afa2eba8:logit_ridge ^
-        T3=config_taq_lag1.yaml:dac307569977:logit_ridge ...
+        T3=config_taq_lag1.yaml:dac307569977:logit_ridge ^
+        SRC_at_lag2=config_taq_flow_mlp.yaml:cac38dec1522:h5m_mlp:2 ...
+Each trial spec may optionally end with :<target_lag_bars>; without it, lag 1 is used.
 Writes <HFTF_DATA_DIR>/reports/eval_h5m.md and eval_h5m.csv.
 """
 
@@ -40,7 +42,7 @@ import polars as pl
 H5M = Path(__file__).resolve().parents[1]
 GROUP = ["instrument_id", "session_id"]
 HOLD = 5
-LAG = 1
+DEFAULT_LAG = 1
 TAIL = 0.1
 NAN = float("nan")
 
@@ -112,16 +114,21 @@ def metrics(df: pl.DataFrame, score: str, selective: bool) -> dict[str, float]:
     return out
 
 
-def load_trial(root: Path, cfg_file: str, run_id: str, model: str) -> pl.DataFrame:
+def load_trial(
+    root: Path, cfg_file: str, run_id: str, model: str, target_lag: int = DEFAULT_LAG
+) -> pl.DataFrame:
     from hft_forecast.ml.config import ExperimentConfig
     from hft_forecast.ml.datasets import load_dataset, usable_rows
 
+    if target_lag < 0:
+        raise ValueError(f"target lag must be non-negative, got {target_lag}")
     cfg = ExperimentConfig.load(H5M / cfg_file)
     frame = load_dataset(root / "features" / cfg.dataset_hash())
     lm = pl.col("mid").log()
     # targets are computed on the full grid BEFORE rows are filtered, so shifts stay aligned
     frame = frame.with_columns(
-        ((lm.shift(-(LAG + HOLD)).over(GROUP) - lm.shift(-LAG).over(GROUP)) * 1e4).alias("r"),
+        ((lm.shift(-(target_lag + HOLD)).over(GROUP) - lm.shift(-target_lag).over(GROUP)) * 1e4)
+        .alias("r"),
         ((pl.col("ask") - pl.col("bid")) / pl.col("mid") * 1e4).alias("spr"),
     )
     frame = usable_rows(frame).select(["timestamp", "instrument_id", "session_id", "r", "spr", "mid"])
@@ -196,22 +203,32 @@ def main() -> None:
     table = []
     for arg in sys.argv[1:]:
         label, spec = arg.split("=", 1)
-        cfg_file, run_id, model = spec.split(":")
-        df = load_trial(root, cfg_file, run_id, model)
+        parts = spec.split(":")
+        if len(parts) not in (3, 4):
+            sys.exit(f"{label}: expected config:run_id:model[:target_lag_bars], got {spec!r}")
+        cfg_file, run_id, model = parts[:3]
+        target_lag = int(parts[3]) if len(parts) == 4 else DEFAULT_LAG
+        if target_lag < 0:
+            sys.exit(f"{label}: target lag must be non-negative, got {target_lag}")
+        df = load_trial(root, cfg_file, run_id, model, target_lag)
         for score, head in (("s_ret", "y_hat"), ("s_prob", "p_up-p_down"),
                             ("s_cost", "y_hat/spread")):
             m = metrics(df, score, selective=(score == "s_ret"))
-            table.append({"trial": label, "run": run_id, "model": model, "head": head, **m})
+            table.append(
+                {"trial": label, "run": run_id, "model": model, "target_lag": target_lag,
+                 "head": head, **m}
+            )
             print(label, head, {k: round(v, 4) for k, v in m.items() if isinstance(v, float)})
     out = pl.DataFrame(table)
     reports = root / "reports"
     out.write_csv(reports / "eval_h5m.csv")
-    cols = ["trial", "head", "ic_cs", "t_ic_cs", "ic_stock", "t_ic_stock", "ls_bps", "t_ls",
-            "ls_cost", "ls_net", "sel_share", "sel_net_bps", "t_sel"]
+    cols = ["trial", "target_lag", "head", "ic_cs", "t_ic_cs", "ic_stock", "t_ic_stock",
+            "ls_bps", "t_ls", "ls_cost", "ls_net", "sel_share", "sel_net_bps", "t_sel"]
     lines = [
-        "# h5m evaluation (tradeable target: log mid(t+6) - log mid(t+1))",
+        "# h5m evaluation (target: log mid(t+lag+5) - log mid(t+lag))",
         "",
-        "t-statistics: ic_cs and ls over test days; ic_stock over stocks. Returns in bps.",
+        "target_lag is fill delay in bars (default 1); t-statistics: ic_cs and ls over test days,",
+        "ic_stock over stocks. Returns in bps.",
         "ls = long top 10% / short bottom 10% each minute, held 5 minutes; ls_cost = spread of",
         "both legs (round trip). sel = trade only when |y_hat| > half spread (rule fixed in advance).",
         "",
@@ -220,7 +237,8 @@ def main() -> None:
     ]
     for row in out.iter_rows(named=True):
         lines.append("| " + " | ".join(
-            str(row.get(c, "")) if c in ("trial", "head") else fmt(row.get(c, NAN)) for c in cols
+            str(row.get(c, "")) if c in ("trial", "target_lag", "head")
+            else fmt(row.get(c, NAN)) for c in cols
         ) + " |")
     (reports / "eval_h5m.md").write_text("\n".join(lines), encoding="utf-8")
     print("\n".join(lines))
