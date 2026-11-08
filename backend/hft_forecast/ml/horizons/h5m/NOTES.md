@@ -71,3 +71,16 @@ Pre-registered before T6-T8:
 - T8 source rule: the trial among T3-T7 with the highest day-level cross-sectional IC of y_hat
   in eval_h5m; T8 = that config with labels.start_lag_bars 2.
 - eval_h5m reports a third head, y_hat / quoted spread (cost-aware ranking).
+
+## Holdout register (2024H2)
+
+| Trial | Run id | Model |
+|---|---|---|
+| H3 | 79591881d17b | logit_ridge |
+| H4 | 8cfc6cfbdaf1 | logit_ridge |
+| H5 | f8c7c1d01d7c | lgbm |
+| H6 | d970798b2c45 | h5m_mlp |
+| H7 | 4e7fd7401a1f | h5m_gru |
+| H8 | e7ecb026ab04 | h5m_mlp |
+
+H8 and the `SRC_at_lag2` comparison are evaluated on the lag-2 target.
