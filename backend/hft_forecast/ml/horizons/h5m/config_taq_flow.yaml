@@ -1,0 +1,47 @@
+# h5m trial 4 (T4): T3 plus the order-flow feature set. Same data, label (lag 1), CV, model
+# and seed as config_taq_lag1.yaml; only `features` differs, so T4 - T3 = the order-flow increment.
+#
+# Caveat for the report: on 1-minute bars the OFI is computed between bar-END snapshots, so the
+# thousands of quote changes inside each minute are not seen. It is a coarse proxy of true OFI.
+experiment: h5m
+name: h5m taq logit_ridge basic+flow lag1
+horizon:
+  name: h5m
+  seconds: 300
+  grid: 1min
+data:
+  source: wrds_taq
+  dataset: taq_nbbo_bars
+  instruments: [AAPL, ABBV, ABT, ACN, ADBE, AMD, AMGN, AMZN, AVGO, BAC, COST, CRM, CSCO, CVX,
+                DHR, DIS, GOOG, HD, INTC, INTU, JNJ, JPM, KO, LIN, LLY, MA, MCD, META, MRK, MS,
+                MSFT, NFLX, NVDA, ORCL, PEP, PFE, PG, QCOM, TMO, TMUS, TSLA, UNH, V, VZ, WFC,
+                WMT, XOM]
+  start: 2024-01-02
+  end: 2024-06-28     # 124 sessions: 40 train + 10 test, 8 walk-forward folds
+  frequency: 1min
+features:
+  - name: basic
+    params:
+      vol_windows: [15, 30]
+  - name: h30s_flow          # from the h30s group (Junyang); windows re-set for 1-minute bars
+    params:
+      ofi_windows: [1, 5, 15, 30]        # order-flow imbalance summed over 1, 5, 15, 30 minutes
+      imbalance_windows: [5, 15, 30]     # mean queue imbalance over 5, 15, 30 minutes
+      imbalance_changes: [1, 5]          # change of the queue imbalance over 1 and 5 minutes
+      regime_window: 30                  # one-tick share and quote intensity over 30 minutes
+labels:
+  dead_zone_bps: 3.0
+  drop_stale_targets: true
+  warmup_seconds: 60
+  cooldown_seconds: 60
+  start_lag_bars: 1
+cv:
+  train_sessions: 40
+  test_sessions: 10
+  anchored: false
+  purge: true
+  min_train_rows: 20000
+model:
+  name: logit_ridge
+seed: 42
+tags: [taq, real-data, lag1, flow]
