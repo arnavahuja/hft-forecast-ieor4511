@@ -8,6 +8,7 @@ from hft_forecast.ml.features import (  # noqa: F401  - registration side effect
     basic,
     book,
     h30s_flow,
+    h5m_seq,
 )
 from hft_forecast.ml.features.registry import (
     FEATURE_SETS,

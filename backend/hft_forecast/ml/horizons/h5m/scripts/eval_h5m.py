@@ -6,6 +6,8 @@ Target (every trial, same definition): the tradeable 5-minute return
 For each trial and for BOTH model heads
     s_ret  = y_hat_logret        the return head   (primary score, fixed in advance)
     s_prob = p_up - p_down       the direction head (secondary; what `hftf ml econ` trades on)
+    s_cost = y_hat / spread      the return head per unit of quoted spread (cost-aware ranking,
+                                 pre-registered on 2026-11-07 before T6-T8 were run)
 it reports
     ic_cs      cross-sectional Spearman IC (same minute, across stocks), averaged per day,
                t-statistic over days (one number per day removes the overlap of 5-minute windows)
@@ -122,7 +124,7 @@ def load_trial(root: Path, cfg_file: str, run_id: str, model: str) -> pl.DataFra
         ((lm.shift(-(LAG + HOLD)).over(GROUP) - lm.shift(-LAG).over(GROUP)) * 1e4).alias("r"),
         ((pl.col("ask") - pl.col("bid")) / pl.col("mid") * 1e4).alias("spr"),
     )
-    frame = usable_rows(frame).select(["timestamp", "instrument_id", "session_id", "r", "spr"])
+    frame = usable_rows(frame).select(["timestamp", "instrument_id", "session_id", "r", "spr", "mid"])
     pred = pl.read_parquet(root / "runs" / run_id / "predictions.parquet")
     pred = pred.filter(pl.col("model").str.starts_with(model))
     names = pred["model"].unique().to_list()
@@ -135,6 +137,7 @@ def load_trial(root: Path, cfg_file: str, run_id: str, model: str) -> pl.DataFra
         (pl.col("p_up") - pl.col("p_down")).alias("s_prob"),
     )
     df = frame.join(pred, on=["timestamp", "instrument_id"], how="inner")
+    df = df.with_columns((pl.col("s_ret") * 1e4 / pl.col("spr")).alias("s_cost"))
     print(f"{run_id} {names[0]}: {df.height:,} rows with out-of-sample predictions")
     return df
 
@@ -195,7 +198,8 @@ def main() -> None:
         label, spec = arg.split("=", 1)
         cfg_file, run_id, model = spec.split(":")
         df = load_trial(root, cfg_file, run_id, model)
-        for score, head in (("s_ret", "y_hat"), ("s_prob", "p_up-p_down")):
+        for score, head in (("s_ret", "y_hat"), ("s_prob", "p_up-p_down"),
+                            ("s_cost", "y_hat/spread")):
             m = metrics(df, score, selective=(score == "s_ret"))
             table.append({"trial": label, "run": run_id, "model": model, "head": head, **m})
             print(label, head, {k: round(v, 4) for k, v in m.items() if isinstance(v, float)})
