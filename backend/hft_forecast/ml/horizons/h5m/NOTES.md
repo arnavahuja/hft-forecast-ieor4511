@@ -62,6 +62,8 @@ Holdout (2024H2): the T3-T8 pipeline with unchanged settings, run once, logged s
   (t 3.27); the pre-registered T8 source rule therefore selects T6.
 - T8 (T6 MLP, trained with label lag 2): y_hat IC 0.0096 (day-level t 3.27), evaluated on
   the fixed lag-1 tradeable target for comparison; long-short net -7.14 bps.
+- On the same lag-2 target, T8 y_hat IC is 0.0073 (t 2.42) versus its T6 source at lag 2
+  (`SRC_at_lag2`) at 0.0064 (t 2.30).
 
 Pre-registered before T6-T8:
 - every trial reports both heads; y_hat stays primary.
