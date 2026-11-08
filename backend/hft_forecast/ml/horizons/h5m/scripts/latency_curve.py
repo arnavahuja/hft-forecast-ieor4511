@@ -1,7 +1,7 @@
 """Signal decay with execution delay: cross-sectional IC of a predictor against the
 return that starts L bars after the decision and lasts H bars. Not a trial (no fitting).
 
-usage: latency_curve.py <config.yaml> <run_id>
+usage: latency_curve.py <config.yaml> <run_id> [model prefix, default logit_ridge]
 """
 import math
 import os
@@ -20,6 +20,7 @@ HOLDS = (1, 5)
 root = Path(os.environ["HFTF_DATA_DIR"])
 cfg = ExperimentConfig.load(Path(sys.argv[1]))
 run_id = sys.argv[2]
+model = sys.argv[3] if len(sys.argv) > 3 else "logit_ridge"  # e.g. lgbm for T5
 
 frame = load_dataset(root / "features" / cfg.dataset_hash())
 lm = pl.col("mid").log()
@@ -28,7 +29,10 @@ targets = [(lm.shift(-(lag + hold)).over(G) - lm.shift(-lag).over(G)).alias(f"r_
 frame = usable_rows(frame.with_columns(targets))
 
 pred = pl.read_parquet(root / "runs" / run_id / "predictions.parquet")
-pred = pred.filter(pl.col("model").str.starts_with("logit_ridge"))
+pred = pred.filter(pl.col("model").str.starts_with(model))
+if pred.height == 0:
+    sys.exit(f"no predictions for a model starting with {model!r} in run {run_id}")
+print("model:", pred["model"].unique().to_list())
 frame = frame.join(pred.select(["timestamp", "instrument_id", "y_hat_logret"]),
                    on=["timestamp", "instrument_id"], how="inner")
 print(f"{frame.height:,} rows with out-of-sample predictions")
@@ -52,7 +56,9 @@ for var in ["f_imbalance", "f_microprice_bps", "f_logret_5", "y_hat_logret"]:
 out = pl.DataFrame(rows)
 pl.Config.set_tbl_rows(100)
 print(out)
-dest = root / "reports" / "latency_curve.csv"
+dest = root / "reports" / "latency_curve.csv"  # read by plot_latency.py
 out.write_csv(dest)
-print(f"wrote {dest}")
+keep = root / "reports" / f"latency_curve_{run_id}.csv"  # one copy per run, never overwritten
+out.write_csv(keep)
+print(f"wrote {dest} and {keep}")
 print("median half-spread (bps):", round(frame["spread_bps"].median() / 2, 2))
