@@ -62,3 +62,8 @@ Holdout (2024H2): the T3-T8 pipeline with unchanged settings, run once, logged s
 Pre-registered before T6-T8:
 - every trial reports both heads; y_hat stays primary.
 - step 10 adds ONE cost-aware ranking, score / quoted spread, decided now (not after seeing results).
+- T7 clarified before running: T6 + h5m_seq (6 raw L1 variables x 20 lags) read by a GRU; the
+  engineered features enter through a dense branch, so T7 - T6 = value of the raw sequence.
+- T8 source rule: the trial among T3-T7 with the highest day-level cross-sectional IC of y_hat
+  in eval_h5m; T8 = that config with labels.start_lag_bars 2.
+- eval_h5m reports a third head, y_hat / quoted spread (cost-aware ranking).
