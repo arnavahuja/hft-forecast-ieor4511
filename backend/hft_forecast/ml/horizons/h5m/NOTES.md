@@ -34,7 +34,7 @@ Environment: lightgbm 4.7.0. Dataset of trials 1-2: `be3b07f87bf6d3f0`.
 | T4 | 538baa451040 | 1 min | 1 | logit_ridge | basic + h30s_flow | order-flow increment |
 | T5 | a0626ba4be10 | 1 min | 1 | lgbm | basic + h30s_flow | non-linear increment |
 | T6 | cac38dec1522 | 1 min | 1 | h5m_mlp | basic + h30s_flow | deep learning, tabular |
-| T7 | | 1 min | 1 | h5m_gru | raw sequence | deep learning, sequence |
+| T7 | 87aee1143379 | 1 min | 1 | h5m_gru | raw sequence | deep learning, sequence |
 | T8 | | 1 min | 2 | best of T3-T7 | same | robustness to delay |
 
 Holdout (2024H2): the T3-T8 pipeline with unchanged settings, run once, logged separately.
@@ -58,6 +58,8 @@ Holdout (2024H2): the T3-T8 pipeline with unchanged settings, run once, logged s
 - Long-short cost 7-12 bps, far above the median spread: the extreme forecasts sit in the
   widest-spread, most volatile names. The signal is strongest where trading is most expensive.
 - Selective rule (|y_hat| > half spread) trades 3-7.5% of rows; T4 net -1.08 bps per trade.
+- T7 (GRU, T6 + raw sequence): y_hat IC 0.0086 (day-level t 3.07), below T6's 0.0090
+  (t 3.27); the pre-registered T8 source rule therefore selects T6.
 
 Pre-registered before T6-T8:
 - every trial reports both heads; y_hat stays primary.
