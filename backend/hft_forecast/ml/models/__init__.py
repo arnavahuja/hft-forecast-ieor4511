@@ -8,6 +8,7 @@ from hft_forecast.ml.models import (  # noqa: F401  - registration
     baselines,
     gbm,
     h30s_lgbm,
+    h5m_mlp,
     torch_seq,
 )
 from hft_forecast.ml.models.registry import MODELS, register_model

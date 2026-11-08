@@ -13,6 +13,7 @@ META = {"name", "notes", "tags"}
 LADDER = [
     ("config_taq_lag1.yaml", "config_taq_flow.yaml", "features"),  # T3 -> T4
     ("config_taq_flow.yaml", "config_taq_flow_lgbm.yaml", "model"),  # T4 -> T5
+    ("config_taq_flow.yaml", "config_taq_flow_mlp.yaml", "model"),  # T4 -> T6
 ]
 
 
@@ -26,9 +27,10 @@ def test_one_change_per_rung(lower: str, upper: str, changed: str) -> None:
     assert b.labels.start_lag_bars == 1
 
 
-def test_t4_and_t5_share_one_dataset() -> None:
+def test_t4_t5_t6_share_one_dataset() -> None:
     t4 = ExperimentConfig.load(H5M / "config_taq_flow.yaml")
     t5 = ExperimentConfig.load(H5M / "config_taq_flow_lgbm.yaml")
-    assert t4.dataset_hash() == t5.dataset_hash()
+    t6 = ExperimentConfig.load(H5M / "config_taq_flow_mlp.yaml")
+    assert t4.dataset_hash() == t5.dataset_hash() == t6.dataset_hash()
     assert [f.name for f in t4.features] == ["basic", "h30s_flow"]
     assert t4.features[1].params["ofi_windows"] == [1, 5, 15, 30]
