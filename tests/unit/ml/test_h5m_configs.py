@@ -27,17 +27,20 @@ def test_h5m_synthetic_baseline_configs_share_data_and_features() -> None:
     assert ridge.cv.min_train_rows == last_sign.cv.min_train_rows == 1000
 
 
-def test_h5m_taq_config_uses_fixed_manifest_and_point_in_time_universe() -> None:
+def test_h5m_taq_config_reads_the_cache_for_the_47_name_universe() -> None:
+    """Real-data baseline (trials 1-2): cache route, 47 names, the audited dataset."""
     taq = ExperimentConfig.load(H5M_CONFIG_DIR / "config_taq.yaml")
 
     assert taq.experiment == "h5m"
-    assert taq.manifest == "sp50_2024h1_1min"
+    assert taq.manifest is None  # the cache route; see the comment at the top of the config
     assert taq.data.source == "wrds_taq"
     assert taq.data.dataset == "taq_nbbo_bars"
     assert taq.data.frequency.value == "1min"
     assert taq.data.start.isoformat() == "2024-01-02"
     assert taq.data.end.isoformat() == "2024-06-28"
-    assert len(taq.data.instruments) == 50
-    assert len(set(taq.data.instruments)) == 50
+    assert len(taq.data.instruments) == len(set(taq.data.instruments)) == 47
+    assert not {"BRK", "GOOGL", "CMCSA"} & set(taq.data.instruments)
     assert taq.features[0].params["vol_windows"] == [15, 30]
+    assert taq.labels.dead_zone_bps == 3.0
     assert taq.cv.min_train_rows == 20_000
+    assert taq.dataset_hash() == "be3b07f87bf6d3f0"  # the dataset trials 1 and 2 used

@@ -53,17 +53,22 @@ def make_labels(frame: pl.DataFrame, spec: HorizonSpec, params: LabelParams) -> 
     bar_seconds = int(spec.delta.astype("timedelta64[s]").astype(int))
     stale = pl.col(C.IS_STALE) if C.IS_STALE in frame.columns else pl.lit(0.0)
 
-    target_mid = pl.col(C.MID).shift(-steps).over(GROUP)
-    target_ts = pl.col(C.TIMESTAMP).shift(-steps).over(GROUP)
-    fwd = (target_mid.log() - pl.col(C.MID).log()).alias(FWD_LOGRET)
+    lag = params.start_lag_bars
+    # the labelled return starts lag bars after the decision bar (an order filled late)
+    start_mid = pl.col(C.MID).shift(-lag).over(GROUP) if lag else pl.col(C.MID)
+    target_mid = pl.col(C.MID).shift(-(lag + steps)).over(GROUP)
+    target_ts = pl.col(C.TIMESTAMP).shift(-(lag + steps)).over(GROUP)
+    fwd = (target_mid.log() - start_mid.log()).alias(FWD_LOGRET)
     # a bar missing from the grid (before the session's first quote) makes the interval
-    # longer than steps bars, which is the gap guard
-    contiguous = (target_ts - pl.col(C.TIMESTAMP)).dt.total_seconds() == steps * bar_seconds
+    # longer than lag + steps bars, which is the gap guard
+    contiguous = (target_ts - pl.col(C.TIMESTAMP)).dt.total_seconds() == (
+        lag + steps
+    ) * bar_seconds
     reasons = {
-        "missing_mid": pl.col(C.MID).is_null() | target_mid.is_null(),
+        "missing_mid": pl.col(C.MID).is_null() | start_mid.is_null() | target_mid.is_null(),
         "crosses_session": target_ts.is_null(),
         "bar_gap": target_ts.is_not_null() & ~contiguous,
-        "stale_target": (stale.shift(-steps).over(GROUP) == 1.0)
+        "stale_target": (stale.shift(-(lag + steps)).over(GROUP) == 1.0)
         if params.drop_stale_targets
         else pl.lit(False),
         "opening_cross": pl.col(SECONDS_SINCE_OPEN) < params.warmup_seconds,

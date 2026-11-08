@@ -80,3 +80,39 @@ def test_the_report_adds_up(labelled):
     assert report["class_down"] + report["class_flat"] + report["class_up"] == pytest.approx(1.0)
     assert report["dropped_closing_cross"] > 0
     assert (labelled[MAGNITUDE_BPS].drop_nulls() >= 0).all()
+
+
+def test_a_start_lag_shifts_the_labelled_return(quote_bars):
+    lag = 2
+    lagged = make_labels(quote_bars, H30S, LabelParams(start_lag_bars=lag))
+    one = lagged.filter(
+        (pl.col(C.INSTRUMENT) == "AAA") & (pl.col(SESSION_ID) == lagged[SESSION_ID].min())
+    ).sort(C.TIMESTAMP)
+    mid = one.get_column(C.MID).to_numpy()
+    got = one.get_column(FWD_LOGRET).to_numpy()
+    want = np.log(mid[lag + STEPS :]) - np.log(mid[lag : -STEPS])
+    assert np.allclose(got[: -(lag + STEPS)], want, atol=1e-12, equal_nan=True)
+    valid = lagged.filter(pl.col(LABEL_VALID))
+    span = (valid[LABEL_END] - valid[C.TIMESTAMP]).dt.total_seconds().to_numpy()
+    assert (span == H30S.seconds + lag * 5).all()  # the purge sees the whole lagged interval
+
+
+def test_a_zero_lag_keeps_the_original_label_and_hashes(quote_bars):
+    from pathlib import Path
+
+    from hft_forecast.ml import config as cfgmod
+
+    base = make_labels(quote_bars, H30S, LabelParams())
+    zero = make_labels(quote_bars, H30S, LabelParams(start_lag_bars=0))
+    assert base.equals(zero)
+
+    path = Path(__file__).parents[3] / "backend/hft_forecast/ml/horizons/h5m/config.yaml"
+    cfg = cfgmod.ExperimentConfig.load(path)
+    # the hash a config had before start_lag_bars existed
+    old = cfg.model_dump(mode="json", include={"horizon", "data", "manifest", "labels"})
+    del old["labels"]["start_lag_bars"]
+    old["features"] = [f.model_dump(mode="json") for f in cfg.features]
+    assert cfg.dataset_hash() == cfgmod._hash(old)
+    lagged = cfg.model_copy(update={"labels": LabelParams(start_lag_bars=1)})
+    assert lagged.dataset_hash() != cfg.dataset_hash()
+    assert lagged.config_hash() != cfg.config_hash()

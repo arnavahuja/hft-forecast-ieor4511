@@ -32,6 +32,13 @@ class LabelParams(BaseModel):
     )
     warmup_seconds: int = Field(60, ge=0, description="Masked after the opening cross")
     cooldown_seconds: int = Field(60, ge=0, description="Masked before the closing cross")
+    start_lag_bars: int = Field(
+        0,
+        ge=0,
+        description="Bars between the decision and the start of the labelled return: the "
+        "label is log mid(t+lag+steps) - log mid(t+lag), the return an order filled "
+        "lag bars late can capture. 0 keeps the original label (and the original hashes)",
+    )
 
 
 class CVSpec(BaseModel):
@@ -92,17 +99,28 @@ class ExperimentConfig(BaseModel):
     def dataset_hash(self) -> str:
         """Hash of everything that determines the feature files."""
         payload = self.model_dump(mode="json", include={"horizon", "data", "manifest", "labels"})
+        _drop_default_lag(payload)
         payload["features"] = [f.model_dump(mode="json") for f in self.features]
         return _hash(payload)
 
     def config_hash(self) -> str:
         """Hash of the whole configuration (the run's identity)."""
-        return _hash(self.model_dump(mode="json", exclude={"name", "notes", "tags"}))
+        payload = self.model_dump(mode="json", exclude={"name", "notes", "tags"})
+        _drop_default_lag(payload)
+        return _hash(payload)
 
     @classmethod
     def load(cls, path: Path) -> ExperimentConfig:
         """Read a YAML or JSON experiment config."""
         return cls.model_validate(yaml.safe_load(path.read_text()))
+
+
+def _drop_default_lag(payload: dict[str, Any]) -> None:
+    """Leave ``start_lag_bars`` out of the hash when it is 0, so configs written before the
+    field existed keep their dataset and run hashes."""
+    labels = payload.get("labels")
+    if isinstance(labels, dict) and labels.get("start_lag_bars") == 0:
+        del labels["start_lag_bars"]
 
 
 def _hash(payload: dict[str, Any]) -> str:
