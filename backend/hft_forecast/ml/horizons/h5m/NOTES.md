@@ -30,7 +30,7 @@ Environment: lightgbm 4.7.0. Dataset of trials 1-2: `be3b07f87bf6d3f0`.
 |---|---|---|---|---|---|---|
 | T1 | a569afa2eba8 | 1 min | 0 | logit_ridge | basic(15,30) | baseline |
 | T2 | 50ab714f9562 | 1 min | 0 | last_sign (f_logret_5) | - | naive baseline |
-| T3 | | 1 min | 1 | logit_ridge | basic(15,30) | does training on the tradeable target help? |
+| T3 | dac307569977 | 1 min | 1 | logit_ridge | basic(15,30) | does training on the tradeable target help? |
 | T4 | | 1 min | 1 | logit_ridge | basic + h30s_flow | order-flow increment |
 | T5 | | 1 min | 1 | lgbm | basic + h30s_flow | non-linear increment |
 | T6 | | 1 min | 1 | h5m_mlp | basic + h30s_flow | deep learning, tabular |
