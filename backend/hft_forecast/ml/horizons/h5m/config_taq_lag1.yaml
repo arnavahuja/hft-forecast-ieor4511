@@ -1,0 +1,45 @@
+# h5m trial 3 (T3): identical to config_taq.yaml except ONE thing, the label start lag.
+#
+#   config_taq.yaml       label = log mid(t+5) - log mid(t)      (includes the first minute)
+#   this file (lag 1)     label = log mid(t+6) - log mid(t+1)    (what an order filled one bar
+#                                                                 after the decision can earn)
+# The economic test (`hftf ml econ`) already decides at t and trades at t+1, so training on
+# this label makes the model learn exactly the return it will be judged on.
+# Same data, features, CV, model and seed as trial 1, so T3 vs T1 isolates the label.
+# tests/unit/ml/test_h5m_lag_configs.py checks that nothing else differs.
+experiment: h5m
+name: h5m taq logit_ridge basic(15,30) lag1
+horizon:
+  name: h5m
+  seconds: 300
+  grid: 1min
+data:
+  source: wrds_taq
+  dataset: taq_nbbo_bars
+  instruments: [AAPL, ABBV, ABT, ACN, ADBE, AMD, AMGN, AMZN, AVGO, BAC, COST, CRM, CSCO, CVX,
+                DHR, DIS, GOOG, HD, INTC, INTU, JNJ, JPM, KO, LIN, LLY, MA, MCD, META, MRK, MS,
+                MSFT, NFLX, NVDA, ORCL, PEP, PFE, PG, QCOM, TMO, TMUS, TSLA, UNH, V, VZ, WFC,
+                WMT, XOM]
+  start: 2024-01-02
+  end: 2024-06-28     # 124 sessions: 40 train + 10 test, 8 walk-forward folds
+  frequency: 1min
+features:
+  - name: basic
+    params:
+      vol_windows: [15, 30]
+labels:
+  dead_zone_bps: 3.0
+  drop_stale_targets: true
+  warmup_seconds: 60
+  cooldown_seconds: 60
+  start_lag_bars: 1      # the only change from config_taq.yaml
+cv:
+  train_sessions: 40
+  test_sessions: 10
+  anchored: false
+  purge: true
+  min_train_rows: 20000
+model:
+  name: logit_ridge
+seed: 42
+tags: [taq, real-data, lag1]
