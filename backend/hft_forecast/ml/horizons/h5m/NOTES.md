@@ -52,3 +52,13 @@ Holdout (2024H2): the T3-T8 pipeline with unchanged settings, run once, logged s
 - T5 (lgbm, default h30s params, untuned by design): IC 0.0026 but highest accuracy 0.3931;
   negative IC at lag 4-5 (-0.0034): likely overfitting. Pre-stated expectation (|T5-T4| < 0.002) was wrong.
 - All t-statistics above are per minute (overlapping windows); day-level t in eval_h5m.
+- eval_h5m (day-level t): T4 y_hat IC 0.0066 (t 3.4) is the most reliable; T1 borderline (t 2.0).
+- Direction head (p_up - p_down) beats the return head: T4 0.0098 (t 3.9), T5 0.0082 (t 3.8),
+  T5 within-stock 0.0085 (t 5.9). Primary metric stays y_hat (pre-registered); 10 comparisons.
+- Long-short cost 7-12 bps, far above the median spread: the extreme forecasts sit in the
+  widest-spread, most volatile names. The signal is strongest where trading is most expensive.
+- Selective rule (|y_hat| > half spread) trades 3-7.5% of rows; T4 net -1.08 bps per trade.
+
+Pre-registered before T6-T8:
+- every trial reports both heads; y_hat stays primary.
+- step 10 adds ONE cost-aware ranking, score / quoted spread, decided now (not after seeing results).
