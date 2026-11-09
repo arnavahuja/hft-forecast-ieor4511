@@ -86,3 +86,28 @@ Pre-registered before T6-T8:
 | H8 | e7ecb026ab04 | h5m_mlp |
 
 H8 and the `SRC_at_lag2` comparison are evaluated on the lag-2 target.
+
+## Final summary (2026-11-08)
+
+1. Predictability exists and replicates. Tradeable target (fill at t+1, hold 5 min),
+   cross-sectional IC, day-level t: MLP 0.0090 (H1, t 3.3) and 0.0090 (H2, t 4.5);
+   GRU 0.0086 (H1) and 0.0106 (H2, t 7.0); direction heads 0.009-0.011 in H2 (t 5-6).
+   About 24 comparisons; most H2 results and T4-T7 in H1 pass |t| > 3.
+2. Ceiling near IC 0.01 for every model (linear, LightGBM, MLP, GRU): differences are
+   within 1-2 standard errors. The bottleneck is information, not model complexity.
+3. Latency: imbalance IC 0.034 -> 0.000 after one minute (H2: 0.052 -> 0.003); reversal
+   decays slowly (H2: 0.017, 0.013, 0.011). Training on the tradeable label moves the
+   model from the cliff to a plateau (T1 0.0031 vs T3 0.0054 at lag 1). At lag 2 the IC
+   falls 20-40% (T8 0.0073 vs T6 0.0064; H8 0.0051 vs H6 0.0038).
+   Correction: the earlier "T8 0.0096" was scored on the lag-1 target.
+4. Economics: long-short gross 0.1-0.45 bps (H7 gross t 4.3) vs round-trip cost 7.5-11 bps;
+   cost-aware ranking halves the cost but removes the edge (net -3 to -6 bps); selective
+   rule net -0.9 to -1.6 bps per trade; framework per-stock backtest: 47/47 negative.
+   The extreme forecasts sit in the widest-spread names: signal and cost are tied.
+5. Where: high-price tercile replicates (H1 0.0135 t 3.9; H2 0.0183 t 7.4); afternoon
+   13:00-14:30 strongest in both halves (moderate evidence); one-tick vs wide does NOT
+   replicate. 09:30-10:00 is outside the sample (30-minute feature warm-up).
+6. Limitations: holdout = re-estimation on an independent period (not a frozen model);
+   costs = quoted spread only (no impact, fees, queue), so the negative economics is
+   conservative; no maker fills; 1-minute snapshots; 47 large caps, 2024 only; default
+   hyperparameters by design.
