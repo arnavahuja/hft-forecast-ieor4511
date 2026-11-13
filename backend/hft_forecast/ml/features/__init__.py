@@ -4,7 +4,12 @@ The shipped sets are imported here so the registry is populated by importing the
 user plugins register themselves through the usual discovery walk.
 """
 
-from hft_forecast.ml.features import basic, book, ofi  # noqa: F401  - registration
+from hft_forecast.ml.features import (  # noqa: F401  - registration
+    basic,
+    book,
+    ofi,
+    quote_dynamics,
+)
 from hft_forecast.ml.features.registry import (
     FEATURE_SETS,
     check_feature_lookahead,

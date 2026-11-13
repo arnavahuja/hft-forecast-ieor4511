@@ -10,6 +10,7 @@ from typing import Any, Final
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from hft_forecast.core import columns as C
 from hft_forecast.core.run_config import DEFAULT_SEED, DataSpec, PluginRef
 from hft_forecast.ml.base import H5M, HorizonSpec
 
@@ -69,6 +70,10 @@ class ExperimentConfig(BaseModel):
     )
     features: list[PluginRef] = Field(default_factory=lambda: [PluginRef(name="basic")])
     labels: LabelParams = LabelParams()
+    label_price: str = Field(
+        C.MID,
+        description="Bar column the forward return is measured on; 'mid_twap' removes bounce",
+    )
     cv: CVSpec = CVSpec()
     model: PluginRef = PluginRef(name="logit_ridge")
     seed: int = DEFAULT_SEED
@@ -92,6 +97,10 @@ class ExperimentConfig(BaseModel):
     def dataset_hash(self) -> str:
         """Hash of everything that determines the feature files."""
         payload = self.model_dump(mode="json", include={"horizon", "data", "manifest", "labels"})
+        if self.label_price != C.MID:
+            # only when it is set, so adding this knob did not orphan every cache built
+            # before it existed
+            payload["label_price"] = self.label_price
         payload["features"] = [f.model_dump(mode="json") for f in self.features]
         return _hash(payload)
 

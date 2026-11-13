@@ -26,6 +26,7 @@ export function RunsPage() {
   const [status, setStatus] = useState('')
   const [tag, setTag] = useState('')
   const [archived, setArchived] = useState(false)
+  const [kind, setKind] = useState('')
   const [selection, setSelection] = useState<RowSelectionState>({})
   const runs = useRuns({
     search: search || undefined,
@@ -33,6 +34,7 @@ export function RunsPage() {
     status: status || undefined,
     tag: tag || undefined,
     include_archived: archived,
+    kind, // '' is every kind; the API alone would default to backtest and hide ml and eda runs
   })
   const experiments = useExperiments()
   const remove = useDeleteRuns()
@@ -159,6 +161,17 @@ export function RunsPage() {
                 <option key={x.name} value={x.name}>
                   {x.name} ({x.runs})
                 </option>
+              ))}
+            </Select>
+            <Select
+              aria-label="Kind"
+              className="w-36"
+              value={kind}
+              onChange={(e) => setKind(e.target.value)}
+            >
+              <option value="">All kinds</option>
+              {['backtest', 'ml', 'eda'].map((k) => (
+                <option key={k}>{k}</option>
               ))}
             </Select>
             <Select

@@ -237,11 +237,14 @@ class RunStore:
         model: str,
         tags: list[str],
         notes: str = "",
+        kind: str = "ml",
     ) -> RunRecord:
-        """Insert a queued ML run. Same table as a backtest, ``kind='ml'``.
+        """Insert a queued ML run. Same table as a backtest, ``kind='ml'`` or ``'eda'``.
 
         An ML run has no ``BacktestConfig``, so it cannot go through :meth:`create`; the
-        economic test (which does have one) is registered as a separate backtest run.
+        economic test (which does have one) is registered as a separate backtest run. A
+        feature study takes the same path with ``kind='eda'``: it has no result either, and
+        listing it beside the runs it informed is the point.
         """
         run_id = uuid.uuid4().hex[:12]
         now = _now()
@@ -253,7 +256,7 @@ class RunStore:
             con.execute(
                 "INSERT INTO runs(id, name, status, created_at, config_json, config_hash, "
                 "strategy, engine, tags_json, notes, experiment, kind) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ml')",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     run_id,
                     name,
@@ -266,6 +269,7 @@ class RunStore:
                     json.dumps(tags),
                     notes,
                     experiment,
+                    kind,
                 ),
             )
         return self.get(run_id)

@@ -3,6 +3,7 @@ import { Layout } from '@/components/Layout'
 import { ComparePage } from '@/pages/Compare'
 import { DashboardPage } from '@/pages/Dashboard'
 import { DataPage } from '@/pages/Data'
+import { EdaPage } from '@/pages/Eda'
 import { NotFoundPage } from '@/pages/NotFound'
 import { RunDetailPage } from '@/pages/RunDetail'
 import { RunsPage } from '@/pages/Runs'
@@ -15,6 +16,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'data', element: <DataPage /> },
+      { path: 'eda', element: <EdaPage /> },
       { path: 'runs', element: <RunsPage /> },
       { path: 'runs/:runId', element: <RunDetailPage /> },
       { path: 'compare', element: <ComparePage /> },

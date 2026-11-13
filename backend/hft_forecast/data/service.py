@@ -105,14 +105,23 @@ class DataService:
         self.cache = ParquetCache(paths.cache_dir)
         self.catalog = Catalog(paths.catalog_dir)
         self.env = SourceEnvironment(paths.data_dir, paths.imports_dir, wrds_username)
+        self._sources: dict[str, DataSource] = {}
 
     # ---- sources
 
     def source(self, name: str, params: dict[str, Any] | None = None) -> DataSource:
-        """Instantiate a data source plugin."""
-        spec = registry(PluginKind.DATA_SOURCE).get(name)
-        source: DataSource = spec.create(params, env=self.env)
-        return source
+        """A data source plugin, reused for the rest of this service's life.
+
+        Sources are stateless apart from the session they hold open, and WRDS counts those
+        against a small per-role limit: a fresh instance per partition opened a connection
+        per instrument-month, never closed one, and tripped the limit (and the library's
+        credential prompt) part way through a long pull.
+        """
+        key = f"{name}:{sorted((params or {}).items())}"
+        if key not in self._sources:
+            spec = registry(PluginKind.DATA_SOURCE).get(name)
+            self._sources[key] = spec.create(params, env=self.env)
+        return self._sources[key]
 
     def sources(self) -> list[dict[str, Any]]:
         """All sources with their datasets and availability."""
@@ -189,6 +198,10 @@ class DataService:
                 )
             )
             for gap in gaps:
+                # a range ending on a weekend or holiday leaves a gap with no session in
+                # it; asking the source for one makes it raise "no data" over nothing
+                if not self.calendar.sessions(gap.start, gap.end):
+                    continue
                 part = src.fetch(request.model_copy(update={"start": gap.start, "end": gap.end}))
                 full = part if full.is_empty() else full.concat(part)
             covered = (min(request.start, latest.start), max(request.end, latest.end))

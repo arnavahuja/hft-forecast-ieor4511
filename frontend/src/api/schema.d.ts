@@ -378,6 +378,9 @@ export interface paths {
     /**
      * List Runs
      * @description Searchable, filterable run history (newest first).
+     *
+     *     ``kind`` defaults to ``backtest`` so the Runs page keeps showing books with an equity
+     *     curve; pass ``ml``, ``eda``, or an empty value for every kind.
      */
     get: operations['list_runs_api_v1_runs_get']
     put?: never
@@ -734,6 +737,46 @@ export interface paths {
      * @description CSV tables and PNG charts comparing the selected runs (zip).
      */
     post: operations['compare_report_api_v1_compare_report_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/eda': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Studies
+     * @description Feature studies, newest first.
+     */
+    get: operations['list_studies_api_v1_eda_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/eda/{run_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Study
+     * @description One stored study: summary, tables and chart specs.
+     */
+    get: operations['get_study_api_v1_eda__run_id__get']
+    put?: never
+    post?: never
     delete?: never
     options?: never
     head?: never
@@ -1365,6 +1408,38 @@ export interface components {
        * @default
        */
       notes: string
+    }
+    /**
+     * EdaOut
+     * @description A stored feature-research study.
+     *
+     *     ``tables`` holds one list of records per section (coverage, ranking, buckets, decay,
+     *     correlation, missing) and ``charts`` holds ready-made :class:`ChartSpec` objects, so the
+     *     front end renders a study with the chart component it already has.
+     */
+    EdaOut: {
+      /** Run Id */
+      run_id: string
+      /** Horizon */
+      horizon: string
+      /** Horizon Seconds */
+      horizon_seconds: number
+      /** Bar Seconds */
+      bar_seconds: number
+      /** Experiment */
+      experiment: string
+      /** Features */
+      features: Record<string, unknown>[]
+      /** Params */
+      params: Record<string, unknown>
+      /** Summary */
+      summary: Record<string, unknown>
+      /** Tables */
+      tables: {
+        [key: string]: Record<string, unknown>[]
+      }
+      /** Charts */
+      charts: components['schemas']['ChartSpec'][]
     }
     /**
      * ExecutionPrice
@@ -2691,6 +2766,7 @@ export interface operations {
         status?: string | null
         tag?: string | null
         include_archived?: boolean
+        kind?: string | null
         limit?: number
       }
       header?: never
@@ -3338,6 +3414,70 @@ export interface operations {
         }
         content: {
           'application/zip': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_studies_api_v1_eda_get: {
+    parameters: {
+      query?: {
+        experiment?: string | null
+        include_archived?: boolean
+        limit?: number
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RunRecord'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_study_api_v1_eda__run_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        run_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['EdaOut']
         }
       }
       /** @description Validation Error */

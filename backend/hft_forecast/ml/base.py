@@ -107,10 +107,11 @@ class HorizonSpec(BaseModel):
 
 
 H30S: Final = HorizonSpec(name="h30s", seconds=30, grid=Frequency.S5)
+H1M: Final = HorizonSpec(name="h1m", seconds=60, grid=Frequency.S5)
 H5M: Final = HorizonSpec(name="h5m", seconds=300, grid=Frequency.MIN1)
 H30M: Final = HorizonSpec(name="h30m", seconds=1800, grid=Frequency.MIN1)
-HORIZONS: Final[dict[str, HorizonSpec]] = {h.name: h for h in (H30S, H5M, H30M)}
-"""The three groups' horizons. A group may change its own ``grid`` in its config."""
+HORIZONS: Final[dict[str, HorizonSpec]] = {h.name: h for h in (H30S, H1M, H5M, H30M)}
+"""The groups' horizons. A group may change its own ``grid`` in its config."""
 
 
 class FeatureSet(ABC):

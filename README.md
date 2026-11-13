@@ -23,9 +23,11 @@ http://127.0.0.1:5173/runs. Work is driven from the command line; the front end 
 From the command line:
 
 ```bash
-hftf ml run backend/hft_forecast/ml/horizons/h5m/config.yaml   # train and predict
+hftf ml eda backend/hft_forecast/ml/horizons/h1m/config.yaml   # rank the features first
+hftf ml run backend/hft_forecast/ml/horizons/h1m/config.yaml   # train and predict
+hftf ml impact backend/hft_forecast/ml/horizons/h1m/config.yaml  # Cont et al. (2014)
 hftf ml econ <run_id>                                          # the economic test
-hftf ml compare --experiment h30s --experiment h5m --experiment h30m --out report/
+hftf ml compare --experiment h30s --experiment h1m --experiment h5m --out report/
 
 hftf run configs/examples/buy_and_hold_synthetic.yaml
 hftf data pull SPY QQQ --start 2015-01-01 --end 2024-12-31
@@ -44,14 +46,14 @@ hftf plugins
 | Engine | Vectorized: closed-form drift, lag >= 1 enforced, open/close execution, rebalance schedules, quoted-spread slippage |
 | Pipeline | `buy_and_hold` and `prediction_signal` strategies, three portfolio constructors (equal weight, signal proportional, quantile long/short), sizing and limit overlays, before/after reporting per overlay |
 | Analytics | Metric groups including deflated Sharpe, PSR and bootstrap CIs; charts, HTML tearsheet, CSV/Parquet export, comparison report, date-range brushing that recomputes metrics |
-| ML | Session-guarded forward-return labels, causal feature sets with an automatic lookahead test, purged and embargoed walk-forward CV with uniqueness weights, three baselines plus two stubs, block-bootstrap metrics, DSR/PBO and one comparison table |
-| Front end | Read-only: the data catalog and quality reports, runs, run detail and Compare. Runs are created from the CLI |
+| ML | Session-guarded forward-return labels, causal feature sets with an automatic lookahead test, feature research (IC ranking, monotonicity, signal decay, redundancy) on the training sessions only, purged and embargoed walk-forward CV with uniqueness weights, three baselines plus two stubs, block-bootstrap metrics, DSR/PBO and one comparison table |
+| Front end | Read-only: the data catalog and quality reports, feature studies (two side by side), runs, run detail and Compare. Runs and studies are created from the CLI |
 
 ## Layout
 
 ```
 backend/hft_forecast/   core, data, engine, strategies, portfolio, analytics, ml, services, api, cli
-    ml/horizons/h30s|h5m|h30m   one folder per group (config + README)
+    ml/horizons/h30s|h1m|h5m|h30m   one folder per group (config + README)
 frontend/           React + Vite + TypeScript UI (generated API client in src/api)
 tests/              unit, integration, golden, fixtures (no network needed)
 user_plugins/       your plugins (auto-discovered, hot-reloaded in dev mode)
@@ -84,8 +86,10 @@ Changing the **frozen interface** needs a PR reviewed by one person from each gr
 8. `ml/economic.py`, `prediction_signal`, `quoted_spread`
 9. the metric names in `ml/evaluate.py` and the table rows in `ml/report.py`
 
-Every configuration anyone evaluates is one trial of its experiment (`h30s`, `h5m`, `h30m`),
-and the deflated Sharpe divides by that count. Do not delete runs.
+Every configuration anyone evaluates is one trial of its experiment (`h30s`, `h1m`, `h5m`,
+`h30m`), and the deflated Sharpe divides by that count. Do not delete runs. A feature study
+(`hftf ml eda`) is not a trial: looking at a feature does not deflate anyone's Sharpe, and
+fitting a model on it does.
 
 ## Development
 

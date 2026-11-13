@@ -103,6 +103,12 @@ module = [
 ]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# torch is an optional extra: the `nn.Module` subclasses need a `type: ignore[misc]` when it
+# is absent (the base is Any) and do not when it is installed, so neither state is an error.
+module = ["hft_forecast.ml.models.torch_seq"]
+warn_unused_ignores = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --strict-markers"
@@ -186,6 +192,7 @@ name = "Horizon packages are independent"
 type = "independence"
 modules = [
     "hft_forecast.ml.horizons.h30s",
+    "hft_forecast.ml.horizons.h1m",
     "hft_forecast.ml.horizons.h5m",
     "hft_forecast.ml.horizons.h30m",
 ]

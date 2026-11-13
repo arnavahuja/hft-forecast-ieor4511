@@ -1,0 +1,49 @@
+# Owned by the h1m group. Change this file, your models and your feature sets; the
+# shared core (ml/base.py, labels, cv, train, evaluate, report) needs a cross-group PR.
+experiment: h1m
+name: h1m real data
+horizon:
+  name: h1m
+  seconds: 60
+  grid: 5s
+
+# ---- EDIT THESE THREE WHEN YOU PULL MORE DATA ----
+data:
+  source: wrds_taq
+  dataset: taq_nbbo_bars
+  instruments: [AAPL, MSFT]   # must match symbols.txt
+  start: 2024-01-02
+  end: 2024-01-31                  # 20 sessions to start; widen once it works
+  frequency: 5s
+manifest: sp3_2024_01_5s           # must match --manifest in pull-taq
+# --------------------------------------------------
+
+features:
+  - name: basic
+    params:
+      vol_windows: [12, 60]   # 1 and 5 minutes on this grid
+  - name: ofi            # Cont, Kukanov and Stoikov (2014); level 1 only
+    params:
+      windows: [1, 6, 12]     # 5 s, 30 s and 1 min of order flow
+      depth_window: 60
+  - name: quote_dynamics
+# The duration-weighted mid, not the snapshot mid: on the raw mid most of the measured IC
+# was bid-ask bounce, which showed up as gross edge that scaled with the spread (corr 0.93)
+# and vanished in the tight names. Set it back to `mid` to reproduce the old numbers.
+label_price: mid_twap
+labels:
+  dead_zone_bps: 1.0      # roughly the half spread at this horizon; a research choice
+  drop_stale_targets: true
+  warmup_seconds: 60
+  cooldown_seconds: 60
+cv:
+  # 20 sessions only fits a small window: 12 train + 4 test leaves 2 folds.
+  # Go back to 40/10 once you have six months.
+  train_sessions: 12
+  test_sessions: 4
+  anchored: false
+  purge: true
+  min_train_rows: 1000
+model:
+  name: logit_ridge
+seed: 42

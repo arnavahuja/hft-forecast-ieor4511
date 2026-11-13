@@ -394,6 +394,51 @@ def ml_run(
     typer.echo(f"results: {directory}")
 
 
+@ml_app.command("eda")
+def ml_eda(
+    config: Annotated[Path, typer.Argument(help="Experiment config", exists=True)],
+    train_sessions: Annotated[
+        int | None, typer.Option(help="Sessions to study (default: the config's CV train window)")
+    ] = None,
+    all_sessions: Annotated[
+        bool, typer.Option(help="Study every session, including future test folds")
+    ] = False,
+    buckets: Annotated[int, typer.Option(help="Rank buckets of the monotonicity profile")] = 5,
+    min_block_rows: Annotated[int, typer.Option(help="Smallest stock-day to keep")] = 50,
+) -> None:
+    """Rank the config's features against its label and register the study.
+
+    Training sessions only unless ``--all-sessions``: ranking features on sessions that later
+    serve as test folds leaks, and the model's own cross-validation cannot detect it.
+    """
+    from hft_forecast.services.eda import default_params, study
+
+    services = _services()
+    cfg = _experiment(config, None, None)
+    if all_sessions and train_sessions is not None:
+        typer.echo("--all-sessions overrides --train-sessions", err=True)
+    sessions = None if all_sessions else (train_sessions or cfg.cv.train_sessions)
+    params = default_params(cfg).model_copy(
+        update={
+            "train_sessions": sessions,
+            "buckets": buckets,
+            "min_block_rows": min_block_rows,
+        }
+    )
+    record = study(cfg, services, params)
+    summary = services.store.ml_metrics(record.id)["summary"]
+    typer.echo(f"study {record.id}  {cfg.experiment}  horizon {cfg.horizon.name}")
+    typer.echo(
+        f"  {summary['instruments']} instruments x {summary['sessions']} sessions   "
+        f"{summary['labelled_bars']:,} labelled bars   "
+        f"{summary['features_ranked']}/{summary['features']} features ranked"
+    )
+    if summary["top_feature"]:
+        typer.echo(f"  strongest: {summary['top_feature']}  mean IC {summary['top_mean_ic']:.4f}")
+    typer.echo(f"results: {services.store.run_dir(record.id)}")
+    typer.echo("view it at /eda in the UI, or read eda/ranking.csv beside it")
+
+
 PAPER_INTERVAL_SECONDS = 600
 """Cont, Kukanov and Stoikov regress over 10-minute intervals."""
 
@@ -487,6 +532,14 @@ def ml_econ(
     directory = services.store.run_dir(run_id)
     predictions = directory / PREDICTIONS_FILE
     label = str(json.loads((directory / MANIFEST_FILE).read_text())["model"])
+    if cfg.manifest:
+        # the backtest engine has no manifest reader, so this one step goes through the
+        # data source; the two see different bars if the pull does not cover the range
+        typer.echo(
+            f"note: prices come from '{cfg.data.source}' over {cfg.data.start}..{cfg.data.end}, "
+            f"not from manifest '{cfg.manifest}'. Pull that range first.",
+            err=True,
+        )
     configs = (
         [cross_sectional_config(cfg, predictions, label, variant)]
         if cross_sectional

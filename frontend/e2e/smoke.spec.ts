@@ -70,6 +70,16 @@ test('the data page lists the catalog and offers an import', async ({ page }) =>
   await expect(page.getByLabel('Book levels to import')).toHaveCount(0) // only after a preview
 })
 
+test('the features page is reachable and says how to produce a study', async ({ page }) => {
+  // studies are made by `hftf ml eda`, which the API deliberately cannot launch, so a
+  // fresh server has none: the empty state is the only thing e2e can assert here
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Features' }).click()
+  await expect(page).toHaveURL(/\/eda$/)
+  await expect(page.getByRole('heading', { name: 'Feature research' })).toBeVisible()
+  await expect(page.getByText('hftf ml eda')).toBeVisible()
+})
+
 test('theme contains no purple', async ({ page }) => {
   await page.goto('/')
   const colors = await page.evaluate(() => {

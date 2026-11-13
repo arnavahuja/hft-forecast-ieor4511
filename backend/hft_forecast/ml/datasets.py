@@ -6,6 +6,8 @@ Memory strategy: one instrument at a time, long frames only. The 5 s panel for 5
 
 from __future__ import annotations
 
+import shutil
+from datetime import date
 from pathlib import Path
 from typing import Final
 
@@ -38,17 +40,31 @@ DATASET_META: Final = "dataset.json"
 
 
 def load_bars(manifest: Manifest, instrument: str, dataset: str = "taq_nbbo_bars") -> pl.LazyFrame:
-    """Scan one instrument's partitions of a manifest.
+    """Scan one instrument's partitions of a manifest, each sliced to the month it declares.
+
+    The slice is what makes a manifest mean what it says. Partitions are cached by request
+    without its dates, so every month of one instrument resolves to the *same* cache file,
+    and a later, wider pull extends that file in place. Scanning the paths as they are would
+    read an instrument once per partition and ignore the range the manifest was pulled for.
 
     Raises:
         DataError: If the manifest holds nothing for that instrument and dataset.
     """
-    files = [
-        e.path for e in manifest.entries if e.instrument == instrument and e.dataset == dataset
-    ]
-    if not files:
+    entries = [e for e in manifest.entries if e.instrument == instrument and e.dataset == dataset]
+    if not entries:
         raise DataError(f"Manifest '{manifest.name}' has no {dataset} for '{instrument}'")
-    return pl.scan_parquet(files).sort(C.TIMESTAMP)
+    day = pl.col(C.TIMESTAMP).dt.date()
+    spans = [
+        pl.scan_parquet(e.path).filter(
+            day.is_between(date.fromisoformat(e.start), date.fromisoformat(e.end))
+        )
+        for e in entries
+    ]
+    # partitions pulled at different times hold the same columns in a different order, which
+    # concat rejects; a select re-orders them and still raises if one is genuinely missing
+    columns = spans[0].collect_schema().names()
+    spans = [s.select(columns) for s in spans]
+    return pl.concat(spans).unique(subset=[C.TIMESTAMP, C.INSTRUMENT]).sort(C.TIMESTAMP)
 
 
 def with_session_columns(frame: pl.DataFrame, calendar: TradingCalendar) -> pl.DataFrame:
@@ -83,7 +99,10 @@ def fetch_bars(config: ExperimentConfig, data: DataService, instrument: str) -> 
     """
     if config.manifest:
         manifest = Manifest.load(data.paths.manifests_dir, config.manifest)
-        frame = load_bars(manifest, instrument).collect()
+        # the manifest is a pull, not an experiment: it can cover more than this run asked
+        # for, so the config's own window still decides what the dataset contains
+        window = pl.col(C.TIMESTAMP).dt.date().is_between(config.data.start, config.data.end)
+        frame = load_bars(manifest, instrument).filter(window).collect()
     else:
         fetched = data.fetch(config.data.to_request([instrument]))
         _check_bars(fetched, config.horizon)
@@ -116,11 +135,16 @@ def build_dataset(config: ExperimentConfig, data: DataService) -> Path:
     Already-built directories are reused: the hash covers the data, horizon, labels and
     feature sets, so a rebuild can only produce the same files.
     """
-    directory = data.paths.data_dir / FEATURES_DIR / config.dataset_hash()
-    if directory.exists() and any(directory.glob("*.parquet")):
-        log.info("dataset_cached", path=str(directory))
-        return directory
-    directory.mkdir(parents=True, exist_ok=True)
+    final = data.paths.data_dir / FEATURES_DIR / config.dataset_hash()
+    if final.exists():
+        log.info("dataset_cached", path=str(final))
+        return final
+    # built under a temporary name and renamed at the end: a directory that exists is a
+    # directory that is complete, so an interrupted build is never served as a cached one
+    directory = final.with_name(f"{final.name}.partial")
+    if directory.exists():
+        shutil.rmtree(directory)
+    directory.mkdir(parents=True)
     sets = [FEATURE_SETS.get(ref.name).create(ref.params) for ref in config.features]
     calendar = TradingCalendar()
     total = 0
@@ -129,7 +153,7 @@ def build_dataset(config: ExperimentConfig, data: DataService) -> Path:
         for feature_set in sets:
             require_columns(frame, feature_set.requires, f"feature set '{feature_set}'")
             frame = feature_set.compute(frame)
-        frame = make_labels(frame, config.horizon, config.labels)
+        frame = _labelled(frame, config)
         report = label_report(frame)
         frame = drop_reason_columns(frame)
         total += frame.height
@@ -140,7 +164,68 @@ def build_dataset(config: ExperimentConfig, data: DataService) -> Path:
             )
         frame.write_parquet(directory / f"{instrument}.parquet")
         log.info("instrument_built", instrument=instrument, **report)
-    return directory
+    add_cross_sectional(directory)
+    directory.rename(final)
+    return final
+
+
+def _labelled(frame: pl.DataFrame, config: ExperimentConfig) -> pl.DataFrame:
+    """Labels, measured on ``config.label_price`` instead of the snapshot mid when asked.
+
+    The snapshot mid jumps half a spread whenever one side's quote flickers, so in a
+    wide-spread name a large part of the forward return is bid-ask bounce that the
+    imbalance features predict mechanically and no strategy can collect. ``mid_twap`` is
+    duration-weighted across the bar and averages that out.
+
+    ``make_labels`` is frozen shared code and always reads ``mid``, so the column is
+    swapped for the call and swapped back. The feature sets have already run, so only the
+    label columns see the substitute.
+    """
+    if config.label_price == C.MID:
+        return make_labels(frame, config.horizon, config.labels)
+    require_columns(frame, (config.label_price,), "label_price")
+    snapshot_mid = frame.get_column(C.MID)
+    # make_labels keeps every row, so the saved column still lines up afterwards
+    labelled = make_labels(
+        frame.with_columns(pl.col(config.label_price).alias(C.MID)), config.horizon, config.labels
+    )
+    return labelled.with_columns(snapshot_mid)
+
+
+# The 10-bar return and the 1 min order flow: the two the market factor is worth having for.
+# Columns a feature set does not produce are skipped, so this stays valid if a group retunes
+# the `basic` lags or the `ofi` windows.
+CROSS_SOURCES: Final = ("f_logret_10", "f_ofi_12")
+
+
+def add_cross_sectional(directory: Path) -> None:
+    """Add the cross-stock columns to every file in a built dataset, in place.
+
+    For each source column the equal-weighted mean over the instruments trading that bar
+    (the market factor) and the instrument's deviation from it. Same-bar only, so nothing
+    here looks ahead. A single-instrument dataset gets nothing: the mean would be the
+    column itself and the deviation identically zero.
+    """
+    files = sorted(directory.glob("*.parquet"))
+    if len(files) < 2:
+        return
+    heads = pl.read_parquet_schema(files[0])
+    sources = [c for c in CROSS_SOURCES if c in heads]
+    if not sources:
+        return
+    market = (
+        pl.concat([pl.scan_parquet(f).select(C.TIMESTAMP, *sources) for f in files])
+        .group_by(C.TIMESTAMP)
+        .agg([pl.col(c).mean().alias(f"f_mkt_{c[2:]}") for c in sources])
+        .collect()
+    )
+    for file in files:
+        frame = pl.read_parquet(file).join(market, on=C.TIMESTAMP, how="left")
+        frame = frame.with_columns(
+            (pl.col(c) - pl.col(f"f_mkt_{c[2:]}")).alias(f"f_rel_{c[2:]}") for c in sources
+        )
+        frame.write_parquet(file)
+    log.info("cross_sectional_added", columns=sources, instruments=len(files))
 
 
 def load_dataset(directory: Path, instruments: list[str] | None = None) -> pl.DataFrame:
@@ -151,7 +236,12 @@ def load_dataset(directory: Path, instruments: list[str] | None = None) -> pl.Da
         files = [f for f in files if f.stem in wanted]
     if not files:
         raise DataError(f"No feature files in {directory}")
-    return pl.concat([pl.read_parquet(f) for f in files]).sort([C.INSTRUMENT, C.TIMESTAMP])
+    frames = [pl.read_parquet(f) for f in files]
+    # instruments can reach the dataset by different routes (a manifest partition, the
+    # cache, an imported file) and those write the same columns in a different order; a
+    # select re-orders them, and still raises if one is genuinely missing
+    columns = frames[0].columns
+    return pl.concat([f.select(columns) for f in frames]).sort([C.INSTRUMENT, C.TIMESTAMP])
 
 
 def design_matrix(frame: pl.DataFrame) -> tuple[FloatArray, list[str]]:

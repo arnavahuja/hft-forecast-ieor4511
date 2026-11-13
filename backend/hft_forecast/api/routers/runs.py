@@ -63,15 +63,21 @@ def list_runs(
     status: str | None = None,
     tag: str | None = None,
     include_archived: bool = False,
+    kind: str | None = "backtest",
     limit: Annotated[int, Query(le=5000)] = 500,
 ) -> list[RunRecord]:
-    """Searchable, filterable run history (newest first)."""
+    """Searchable, filterable run history (newest first).
+
+    ``kind`` defaults to ``backtest`` so the Runs page keeps showing books with an equity
+    curve; pass ``ml``, ``eda``, or an empty value for every kind.
+    """
     return services.store.list_runs(
         search=search,
         experiment=experiment,
         status=status,
         tag=tag,
         include_archived=include_archived,
+        kind=kind or None,
         limit=limit,
     )
 

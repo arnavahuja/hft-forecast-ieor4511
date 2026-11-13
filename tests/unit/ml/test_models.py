@@ -23,7 +23,14 @@ def sample():
     return x, y_dir, y_ret
 
 
+# torch ships in the optional `ml` extra, so a checkout without it skips these rather
+# than failing: a group that does not train sequence models never needs the dependency.
+NEEDS = {"torch_seq": "torch"}
+
+
 def _fit(name, sample, weight=None):
+    if name in NEEDS:
+        pytest.importorskip(NEEDS[name])
     model = MODELS.get(name).create()
     model.set_feature_names(FEATURES)
     model.fit(*sample, weight, 7)

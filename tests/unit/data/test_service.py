@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import polars as pl
 import pytest
@@ -9,6 +10,7 @@ from hft_forecast.core import columns as C
 from hft_forecast.core.errors import DataError
 from hft_forecast.core.types import DataRequest, Frequency
 from hft_forecast.data.importer import guess_mapping, preview
+from hft_forecast.data.service import DataPaths, DataService
 from hft_forecast.data.sources.synthetic import SyntheticSource
 
 
@@ -55,6 +57,17 @@ def test_partial_overlap_fetches_only_missing(data_service, counted):
     # a sub-range is now served from cache
     data_service.fetch(_req(start=date(2021, 1, 4), end=date(2021, 5, 1)))
     assert len(counted) == 2
+
+
+def test_a_gap_with_no_trading_day_is_not_fetched(data_service, counted):
+    """Ending a range on a weekend used to ask the source for Saturday and Sunday."""
+    # 2021-06-30 is a Wednesday; the 3rd and 4th of July 2021 are a Saturday and a Sunday
+    data_service.fetch(_req(end=date(2021, 7, 2)))
+    assert len(counted) == 1
+
+    data_service.fetch(_req(end=date(2021, 7, 4)))
+
+    assert len(counted) == 1, "the extra two days hold no session, so nothing to fetch"
 
 
 def test_refresh_creates_new_version_and_old_is_loadable(data_service):
@@ -131,3 +144,9 @@ def test_fetch_partitioned_covers_the_same_rows_as_one_big_fetch(data_service):
 def test_fetch_partitioned_rejects_an_unknown_unit(data_service):
     with pytest.raises(DataError):
         data_service.partitions(_req(), by="week")
+
+
+def test_source_is_reused(tmp_path: Path) -> None:
+    """One instance per source: a WRDS session must not be reopened per partition."""
+    service = DataService(DataPaths.under(tmp_path))
+    assert service.source("synthetic") is service.source("synthetic")

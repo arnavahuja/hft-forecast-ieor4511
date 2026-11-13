@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from hft_forecast.core.run_config import BacktestConfig
-from hft_forecast.core.specs import MetricDescriptor, MetricValue
+from hft_forecast.core.specs import ChartSpec, MetricDescriptor, MetricValue
 from hft_forecast.core.types import Adjustment, Frequency
 from hft_forecast.data.importer import ImportMapping
 from hft_forecast.services.run_store import RunRecord
@@ -310,3 +310,23 @@ class WrdsTestOut(OutputModel):
 
     ok: bool
     message: str
+
+
+class EdaOut(OutputModel):
+    """A stored feature-research study.
+
+    ``tables`` holds one list of records per section (coverage, ranking, buckets, decay,
+    correlation, missing) and ``charts`` holds ready-made :class:`ChartSpec` objects, so the
+    front end renders a study with the chart component it already has.
+    """
+
+    run_id: str
+    horizon: str
+    horizon_seconds: int
+    bar_seconds: int
+    experiment: str
+    features: list[dict[str, Any]]
+    params: dict[str, Any]
+    summary: dict[str, Any]
+    tables: dict[str, list[dict[str, Any]]]
+    charts: list[ChartSpec]

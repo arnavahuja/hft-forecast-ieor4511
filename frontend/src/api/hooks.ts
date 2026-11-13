@@ -15,6 +15,7 @@ export type DatasetRecord = Schemas['DatasetRecord']
 export type CompareTable = Schemas['CompareMetricsOut']
 export type ImportMapping = Schemas['ImportMapping']
 export type ReportRequest = Schemas['ReportRequest']
+export type EdaStudy = Schemas['EdaOut']
 
 export interface Window {
   start?: string | null
@@ -63,6 +64,8 @@ export interface RunFilters {
   status?: string
   tag?: string
   include_archived?: boolean
+  /** `backtest` (the default), `ml`, `eda`, or empty for every kind. */
+  kind?: string
   limit?: number
 }
 
@@ -438,4 +441,22 @@ export function useWrdsTest() {
   })
 }
 
-// ------------------------------------------------------------------ research
+// ------------------------------------------------------------------ feature studies
+
+/** Feature-research studies, newest first. */
+export function useEdaStudies() {
+  return useQuery({
+    queryKey: ['eda'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/eda')),
+  })
+}
+
+/** One stored study: summary, tables and chart specs. */
+export function useEdaStudy(id: string | undefined) {
+  return useQuery({
+    queryKey: ['eda', id],
+    enabled: Boolean(id),
+    queryFn: async () =>
+      unwrap(await api.GET('/api/v1/eda/{run_id}', { params: { path: { run_id: id ?? '' } } })),
+  })
+}

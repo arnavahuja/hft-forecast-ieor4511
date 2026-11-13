@@ -805,7 +805,7 @@
           "runs"
         ],
         "summary": "List Runs",
-        "description": "Searchable, filterable run history (newest first).",
+        "description": "Searchable, filterable run history (newest first).\n\n``kind`` defaults to ``backtest`` so the Runs page keeps showing books with an equity\ncurve; pass ``ml``, ``eda``, or an empty value for every kind.",
         "operationId": "list_runs_api_v1_runs_get",
         "parameters": [
           {
@@ -880,6 +880,23 @@
               "type": "boolean",
               "default": false,
               "title": "Include Archived"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "backtest",
+              "title": "Kind"
             }
           },
           {
@@ -1872,6 +1889,124 @@
             "description": "Report zip",
             "content": {
               "application/zip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/eda": {
+      "get": {
+        "tags": [
+          "eda"
+        ],
+        "summary": "List Studies",
+        "description": "Feature studies, newest first.",
+        "operationId": "list_studies_api_v1_eda_get",
+        "parameters": [
+          {
+            "name": "experiment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Experiment"
+            }
+          },
+          {
+            "name": "include_archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Archived"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 5000,
+              "default": 500,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunRecord"
+                  },
+                  "title": "Response List Studies Api V1 Eda Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/eda/{run_id}": {
+      "get": {
+        "tags": [
+          "eda"
+        ],
+        "summary": "Get Study",
+        "description": "One stored study: summary, tables and chart specs.",
+        "operationId": "get_study_api_v1_eda__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EdaOut"
+                }
+              }
             }
           },
           "422": {
@@ -3258,6 +3393,77 @@
         ],
         "title": "DatasetRecord",
         "description": "Catalog entry for one dataset.\n\nAttributes:\n    id: Dataset id (cache series key or import id).\n    kind: ``cache`` (pulled from a source) or ``import`` (local file).\n    source: Source plugin name.\n    dataset: Dataset name within the source.\n    name: Display name.\n    frequency: Bar frequency.\n    start: First timestamp (ISO).\n    end: Last timestamp (ISO).\n    instruments: Instrument ids.\n    fields: Data fields.\n    rows: Row count.\n    last_refresh: ISO time of the last fetch or import.\n    path: Parquet file with the current data.\n    request: Original request (for refresh), without secrets.\n    quality: Issue counts per severity.\n    survivorship_bias_free: Whether the dataset includes delisted instruments.\n    quality_label: Source quality label (e.g. ``lower`` for Yahoo).\n    adjustment: Price adjustment convention.\n    notes: Free-form notes."
+      },
+      "EdaOut": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "horizon": {
+            "type": "string",
+            "title": "Horizon"
+          },
+          "horizon_seconds": {
+            "type": "integer",
+            "title": "Horizon Seconds"
+          },
+          "bar_seconds": {
+            "type": "integer",
+            "title": "Bar Seconds"
+          },
+          "experiment": {
+            "type": "string",
+            "title": "Experiment"
+          },
+          "features": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "params": {
+            "type": "object",
+            "title": "Params"
+          },
+          "summary": {
+            "type": "object",
+            "title": "Summary"
+          },
+          "tables": {
+            "additionalProperties": {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Tables"
+          },
+          "charts": {
+            "items": {
+              "$ref": "#/components/schemas/ChartSpec"
+            },
+            "type": "array",
+            "title": "Charts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "horizon",
+          "horizon_seconds",
+          "bar_seconds",
+          "experiment",
+          "features",
+          "params",
+          "summary",
+          "tables",
+          "charts"
+        ],
+        "title": "EdaOut",
+        "description": "A stored feature-research study.\n\n``tables`` holds one list of records per section (coverage, ranking, buckets, decay,\ncorrelation, missing) and ``charts`` holds ready-made :class:`ChartSpec` objects, so the\nfront end renders a study with the chart component it already has."
       },
       "ExecutionPrice": {
         "type": "string",
