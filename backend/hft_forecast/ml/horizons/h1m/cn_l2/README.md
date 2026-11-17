@@ -41,6 +41,36 @@ forecast on MAE on 14 of 19 May days (sign test p = 0.06); the MAE gain is small
 the magnitude head is deliberately conservative, so IC and direction metrics are the
 headline numbers.
 
+## Cost-aware backtest
+
+`backtest_costs.py` scores the forecasts after costs. Thresholds are chosen on May and
+applied unchanged to June. Assumed costs: stamp duty 5 bps on the sell leg, commission
+1 bp and exchange fees 0.5 bp per leg (8 bps fixed per round trip), plus half the spread
+per leg (one tick round trip, 6.1 bps on average in June) when taking liquidity.
+
+**Intraday round trips on a base position** (sell first or buy first against existing
+inventory, so T+1 does not bind), trading only the most confident forecasts. June, locked test:
+
+| Trades taken | Trades per stock-day | Hit rate | Gross (bps) | Net, taker (bps) | Net, fees only (bps) |
+|---|---|---|---|---|---|
+| Top 50% | 53.8 | 0.554 | 1.16 | -12.3 | -6.8 |
+| Top 20% | 22.9 | 0.578 | 1.92 | -10.8 | -6.1 |
+| Top 10% | 12.1 | 0.592 | 2.49 | -10.0 | -5.5 |
+| Top 5% | 6.3 | 0.615 | 3.59 | -8.8 | -4.4 |
+| Top 1% | 1.4 | 0.649 | 6.55 | -5.8 | -1.5 |
+
+The gross edge rises steadily with confidence and June matches May at every threshold,
+which supports the signal being real. But even the top 1% of forecasts (6.5 bps gross,
+65% hit rate) does not cover the 8 bps of fixed costs, so **the forecast is not a
+profitable standalone round-trip strategy** at these costs. Closing the gap would need
+passive execution (earning rather than paying the spread), a longer horizon, or lower fees.
+
+**Execution timing.** An order that must be filled now or 60 s later pays the same fees
+either way. Waiting when the forecast is adverse (a buyer waits on a predicted fall, a
+seller on a predicted rise) saves **0.36 bps per order in June** (t = 18.8; May 0.35),
+about 9% of what perfect foresight would save. Small per order, but it costs nothing,
+which is where a 60 s signal of this size is most useful.
+
 ## Why the label starts after the forecast time
 
 There are no quotes in this feed, so there is no midquote. The first run used the
@@ -67,6 +97,7 @@ kept in `results_trailing_label/` for reference.
 - `results/`: validation and test metrics, per-stock and daily tables, training histories,
   bar coverage per stock-day, run configuration.
 - `results_trailing_label/`: the same tables for the first (bounce-affected) label.
+- `backtest_costs.py`: the cost-aware backtest above (reads the notebook's per-window predictions and the bar cache; writes `results/backtest_*`).
 - `vm/`: scripts to run the notebook headless on a GCP GPU VM (`launch_cn.sh` creates the VM,
   copies the notebook, runs it with papermill, uploads results and powers the VM off).
 
