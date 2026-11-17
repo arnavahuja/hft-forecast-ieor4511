@@ -71,6 +71,27 @@ seller on a predicted rise) saves **0.36 bps per order in June** (t = 18.8; May 
 about 9% of what perfect foresight would save. Small per order, but it costs nothing,
 which is where a 60 s signal of this size is most useful.
 
+## Comparison with the team's US runs
+
+The team's US Colab runs (v4 and v5 notebooks) used an earlier version of this pipeline
+(single 60 s head, no multi-horizon pretraining or per-stock heads) on WRDS TAQ NBBO data:
+12 S&P 500 megacaps, 5 s grid, snapshot midquote label, trained January to April 2024
+and validated on May 2024.
+
+| May validation | US megacaps (TAQ, midquote) | China A-shares (L2 trades, forward VWAP) |
+|---|---|---|
+| Spearman IC, per model and seed | 0.031 to 0.045 | 0.086 to 0.098 |
+| Spearman IC, best seed ensemble | | 0.100 |
+| Directional skill | Sign accuracy 51.2 to 51.9% vs 50.8% majority | Balanced accuracy 0.425 vs 0.333 |
+| MAE vs zero forecast (bps) | 3.88 to 3.89 vs 3.875 (worse) | 7.55 to 7.58 vs 7.576 (slightly better) |
+| Locked test evaluated | No | Yes (June IC 0.103) |
+
+This is not a like-for-like comparison. The markets differ (US megacaps are among the most
+efficient stocks anywhere; A-shares have heavy retail flow and a 1-cent tick worth 3 to 11
+bps of price), the labels differ (midquote versus forward trade VWAP, and the team found
+much of the snapshot-midquote IC to be bounce), and the US runs used an earlier pipeline.
+A matched comparison needs the US data rerun through this notebook by a WRDS account holder.
+
 ## Why the label starts after the forecast time
 
 There are no quotes in this feed, so there is no midquote. The first run used the
