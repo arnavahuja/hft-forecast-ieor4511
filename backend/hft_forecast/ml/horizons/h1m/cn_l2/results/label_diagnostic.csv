@@ -1,0 +1,8 @@
+check,trailing_label,forward_start_label
+"last_vs_vwap_bps single-feature Spearman IC, May",0.129,-0.003
+"ret_120s_bps single-feature Spearman IC, May",-0.063,-0.037
+"flow_imbalance_1m single-feature Spearman IC, May",0.029,0.012
+"Linear model fit on April, Spearman IC on May",0.142,0.044
+"Best sequence ensemble, Spearman IC on May",0.301,0.101
+"Best sequence ensemble, Spearman IC on June (locked)",0.3,0.1025
+"Rank corr(per-stock IC, tick size in bps), May",0.7,0.24

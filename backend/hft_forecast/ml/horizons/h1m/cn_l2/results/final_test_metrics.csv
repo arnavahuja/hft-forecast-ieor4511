@@ -1,0 +1,2 @@
+model,period,n,ic_spearman,ic_t_stat,ic_sessions,ic_pearson,spearman_cls,balanced_accuracy,confident_share,sign_accuracy_conf,mae_bps,zero_mae_bps,rmse_bps,zero_rmse_bps
+LSTM/pt seed ensemble,2025-06 (locked test),105057,0.1025,25.2155,20,0.104,0.1033,0.4407,0.2252,0.5767,7.7794,7.8019,12.3678,12.4072
