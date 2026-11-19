@@ -41,6 +41,39 @@ forecast on MAE on 14 of 19 May days (sign test p = 0.06); the MAE gain is small
 the magnitude head is deliberately conservative, so IC and direction metrics are the
 headline numbers.
 
+## Out of sample: July to December 2025
+
+The course data runs to December, so the frozen models (no retraining, no tuning) were
+scored on six more months with `oos/oos_eval.py` and `oos/oos_newstocks.py`. These run
+the notebook's own code; recomputing June on CPU reproduces the saved GPU predictions
+(all 105,057 windows, correlation 0.99999997).
+
+The universe was reconstituted on 1 July 2025: 22 of the 50 stocks stayed and 28 were
+new. The 22 continuing stocks use their trained per-stock models. The 28 new stocks were
+never seen in training, so they use the pooled model with the average stock embedding
+(a cold start); July is their burn-in month, used only for volume and return scaling.
+
+| Month | Continuing stocks: IC | t-stat | Balanced acc. | New stocks (cold start): IC | t-stat | Balanced acc. |
+|---|---|---|---|---|---|---|
+| Jun (all 50, locked test) | 0.103 | 25.2 | 0.441 | | | |
+| Jul | 0.100 | 15.9 | 0.423 | burn-in | | |
+| Aug | 0.117 | 15.2 | 0.444 | 0.140 | 14.7 | 0.457 |
+| Sep | 0.115 | 20.9 | 0.436 | 0.102 | 15.9 | 0.445 |
+| Oct | 0.094 | 11.1 | 0.429 | 0.098 | 14.5 | 0.440 |
+| Nov | 0.085 | 15.5 | 0.428 | 0.077 | 12.2 | 0.430 |
+| Dec | 0.091 | 21.0 | 0.435 | 0.092 | 13.4 | 0.442 |
+
+The signal holds for six months without retraining and transfers to stocks the model has
+never seen, which points to a general microstructure effect rather than stock-specific
+fitting. IC drifts down in the fourth quarter (0.08 to 0.09 versus 0.10 to 0.12), so
+periodic retraining would likely help.
+
+After costs (`oos/oos_backtest.py`, May thresholds, continuing stocks), the picture is the
+same as in June: round trips lose money at every threshold when crossing the spread (top
+1%: -1.8 to -5.9 bps per trade), and only come near break-even with fees alone (-2.2 to
++0.6 bps). Execution timing saves 0.30 to 0.71 bps per order in every month (t between 8.9
+and 17.4). Monthly tables are in `results/oos_2025h2/`.
+
 ## Cost-aware backtest
 
 `backtest_costs.py` scores the forecasts after costs. Thresholds are chosen on May and
@@ -119,6 +152,7 @@ kept in `results_trailing_label/` for reference.
   bar coverage per stock-day, run configuration.
 - `results_trailing_label/`: the same tables for the first (bounce-affected) label.
 - `backtest_costs.py`: the cost-aware backtest above (reads the notebook's per-window predictions and the bar cache; writes `results/backtest_*`).
+- `oos/`: the July to December out-of-sample scripts (they load the notebook's code and the saved checkpoints; set `L2_RAW_DIR` and `RESULTS_DIR`).
 - `vm/`: scripts to run the notebook headless on a GCP GPU VM (`launch_cn.sh` creates the VM,
   copies the notebook, runs it with papermill, uploads results and powers the VM off).
 
@@ -137,4 +171,4 @@ a small end-to-end check (8 stocks, two months, tiny models) in a few minutes on
 2. Shenzhen does not report the aggressor; it is inferred from order sequence numbers (the later order).
 3. The previous close for the price-limit features is the last continuous-session trade of the prior day in the sample, not the official close.
 4. No transaction costs. A-shares settle T+1 and short selling is restricted, so a down forecast is not directly tradeable; an economic test should be long-only or inventory-based.
-5. One validation month and one test month. The second half of 2025 is available for walk-forward validation.
+5. One validation month and seven out-of-sample months (June to December 2025), all from one year.
