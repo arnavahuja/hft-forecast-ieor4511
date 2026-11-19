@@ -74,6 +74,28 @@ same as in June: round trips lose money at every threshold when crossing the spr
 +0.6 bps). Execution timing saves 0.30 to 0.71 bps per order in every month (t between 8.9
 and 17.4). Monthly tables are in `results/oos_2025h2/`.
 
+## Linear baseline
+
+A least-squares model on the same 27 features, fit on January to April with the
+forward-start label (`oos/label_and_linear.py`, rows sampled every 2 minutes), against the
+LSTM seed ensemble. July to December use the 22 continuing stocks for both.
+
+| Month | Linear IC | LSTM ensemble IC |
+|---|---|---|
+| May (validation) | 0.062 | 0.100 |
+| Jun (locked test) | 0.073 | 0.103 |
+| Jul | 0.070 | 0.100 |
+| Aug | 0.086 | 0.117 |
+| Sep | 0.090 | 0.115 |
+| Oct | 0.058 | 0.094 |
+| Nov | 0.064 | 0.084 |
+| Dec | 0.062 | 0.091 |
+
+The sequence model beats the linear model in every month, by 0.02 to 0.04 IC (about 1.3 to
+1.6 times), so the 5 minutes of input history and the nonlinear model add predictive value
+beyond the current feature values. The linear model also stays positive out of sample,
+which supports the features themselves carrying the signal.
+
 ## Cost-aware backtest
 
 `backtest_costs.py` scores the forecasts after costs. Thresholds are chosen on May and
@@ -135,13 +157,14 @@ and that error reverts. The checks in `results/label_diagnostic.csv`:
 | Check (May) | Trailing label | Forward-start label |
 |---|---|---|
 | Single feature: last trade vs VWAP, IC | 0.129 | -0.003 |
-| Linear model fit on April, IC | 0.142 | 0.044 |
+| Linear model fit on Jan to Apr, IC | 0.145 | 0.062 |
 | Best sequence ensemble, IC | 0.301 | 0.101 |
 | Rank corr(per-stock IC, tick size) | 0.70 | 0.24 |
 
 Under the forward-start label the starting price contains no trade the model has seen,
 and it is roughly the price a trader acting at t could obtain. The first run's tables are
-kept in `results_trailing_label/` for reference.
+kept in `results_trailing_label/` for reference. `oos/label_and_linear.py` reproduces the
+feature and linear rows (`results/label_diagnostic.csv`).
 
 ## Files
 
@@ -152,7 +175,7 @@ kept in `results_trailing_label/` for reference.
   bar coverage per stock-day, run configuration.
 - `results_trailing_label/`: the same tables for the first (bounce-affected) label.
 - `backtest_costs.py`: the cost-aware backtest above (reads the notebook's per-window predictions and the bar cache; writes `results/backtest_*`).
-- `oos/`: the July to December out-of-sample scripts (they load the notebook's code and the saved checkpoints; set `L2_RAW_DIR` and `RESULTS_DIR`).
+- `oos/`: the July to December out-of-sample scripts and the label diagnostic and linear baseline (they load the notebook's code and the saved checkpoints; set `L2_RAW_DIR` and `RESULTS_DIR`).
 - `vm/`: scripts to run the notebook headless on a GCP GPU VM (`launch_cn.sh` creates the VM,
   copies the notebook, runs it with papermill, uploads results and powers the VM off).
 
