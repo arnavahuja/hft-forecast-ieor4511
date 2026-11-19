@@ -96,6 +96,36 @@ The sequence model beats the linear model in every month, by 0.02 to 0.04 IC (ab
 beyond the current feature values. The linear model also stays positive out of sample,
 which supports the features themselves carrying the signal.
 
+## Other horizons
+
+The models also carry 15, 30 and 120 s heads from multi-horizon pretraining (only the 60 s
+heads were fine-tuned). `oos/horizons.py` scores all four on the same windows, May to
+December (July onward on the 22 continuing stocks); the 60 s column reproduces the tables above.
+
+| Horizon | Mean IC | Range by month | Mean balanced accuracy |
+|---|---|---|---|
+| 15 s | 0.106 | 0.086 to 0.130 | 0.461 |
+| 30 s | 0.108 | 0.090 to 0.130 | 0.445 |
+| 60 s | 0.101 | 0.084 to 0.117 | 0.433 |
+| 120 s | 0.086 | 0.076 to 0.099 | 0.427 |
+
+Predictability is highest at 15 to 30 s and fades slowly with the horizon; balanced
+accuracy is not strictly comparable across horizons because the class mix changes (15 s
+moves are mostly inside the 5 bps dead zone). At 120 s the moves are larger, so the cost
+picture improves a little (June to December means, top 1% of forecasts, May thresholds):
+
+| | 60 s | 120 s |
+|---|---|---|
+| Gross per trade (bps) | 7.3 | 8.5 |
+| Net after fees and spread (bps) | -4.4 | -3.2 |
+| Net after fees only (bps) | -0.7 | +0.5 |
+| Months positive after fees and spread | 0 of 7 | 1 of 7 |
+| Execution-timing saving per order (bps) | 0.44 | 0.49 |
+
+A longer horizon narrows the gap but does not close it when crossing the spread; with fees
+alone the most confident 120 s forecasts are roughly break-even. Tables are in
+`results/horizons/` (consecutive 120 s trades in one stock overlap by 15 s).
+
 ## Cost-aware backtest
 
 `backtest_costs.py` scores the forecasts after costs. Thresholds are chosen on May and
@@ -175,7 +205,7 @@ feature and linear rows (`results/label_diagnostic.csv`).
   bar coverage per stock-day, run configuration.
 - `results_trailing_label/`: the same tables for the first (bounce-affected) label.
 - `backtest_costs.py`: the cost-aware backtest above (reads the notebook's per-window predictions and the bar cache; writes `results/backtest_*`).
-- `oos/`: the July to December out-of-sample scripts and the label diagnostic and linear baseline (they load the notebook's code and the saved checkpoints; set `L2_RAW_DIR` and `RESULTS_DIR`).
+- `oos/`: the July to December out-of-sample scripts, the label diagnostic and linear baseline, and the all-horizon evaluation (they load the notebook's code and the saved checkpoints; set `L2_RAW_DIR` and `RESULTS_DIR`).
 - `vm/`: scripts to run the notebook headless on a GCP GPU VM (`launch_cn.sh` creates the VM,
   copies the notebook, runs it with papermill, uploads results and powers the VM off).
 
