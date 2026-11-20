@@ -220,7 +220,7 @@ and act when |forecast| is above its median. Saving against TWAP, bps of the par
 | Aug to Dec | 28 new (cold start) | +1.01 to +2.22 | 2.8 to 4.2 | -0.46 to +0.25 | 70% to 91% |
 | Dec (second half model, locked test) | all 50 | +1.03 | 4.0 | -0.32 | 78% |
 
-The saving is positive in all 15 month and stock-group cells, with both models, and the
+The saving is positive in all 13 test month and stock-group cells, with both models, and the
 shuffled forecast gives about zero. On validation the saving grows with K (May: 0.51 bps at
 K = 1, 0.71 at 2, 0.87 at 4, 0.94 at 8), so even staying within one slice of TWAP helps.
 Market impact is ignored, which is fair only for parent orders that are small next to
