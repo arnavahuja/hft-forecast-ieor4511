@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Creates one GPU VM (no public IP, per Columbia org policy) for the 60 s notebook run.
-# Tries L4 then T4 across zones because GPUs are often out of stock.
+# Tries L4 then T4 across zones because GPUs are often out of stock. Non-US regions need
+# their own Cloud NAT (hftf-router/hftf-nat) since the VM has no public IP.
 set -uo pipefail
 PROJECT="hftf-capstone-1109"
 NAME="hftf-run"
 IMAGE_FAMILY="pytorch-2-9-cu129-ubuntu-2204-nvidia-580"
-L4_ZONES="us-central1-a us-central1-b us-central1-c us-east4-a us-east4-c us-east1-c us-east1-d us-west1-a us-west1-b us-west4-a"
-T4_ZONES="us-east4-a us-central1-a us-central1-b us-central1-c us-central1-f us-east1-c us-east1-d us-east4-a us-east4-b us-west1-a us-west1-b us-west4-a us-west4-b"
+L4_ZONES="us-central1-a us-central1-b us-central1-c us-east4-a us-east4-c us-east1-c us-east1-d us-west1-a us-west1-b us-west4-a europe-west4-a europe-west4-b europe-west4-c europe-west1-b europe-west1-c asia-east1-a asia-east1-c"
+T4_ZONES="us-east4-a us-central1-a us-central1-b us-central1-c us-central1-f us-east1-c us-east1-d us-east4-a us-east4-b us-west1-a us-west1-b us-west4-a us-west4-b europe-west4-a europe-west4-b europe-west4-c europe-west1-b europe-west1-d asia-east1-a asia-east1-c"
 
 try() {  # zone machine accelerator
   gcloud compute instances create "$NAME" --project="$PROJECT" --zone="$1" \

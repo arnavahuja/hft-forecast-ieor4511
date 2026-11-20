@@ -74,6 +74,26 @@ same as in June: round trips lose money at every threshold when crossing the spr
 +0.6 bps). Execution timing saves 0.30 to 0.71 bps per order in every month (t between 8.9
 and 17.4). Monthly tables are in `results/oos_2025h2/`.
 
+## Replication: retrained on July to December
+
+The whole notebook was rerun unchanged on the reconstituted July universe (50 stocks, 28 of
+them new): train July to October, validate November, locked test December, same features,
+label, architectures, seeds and selection rule (`vm/run.env` sets the months and splits).
+
+| | First half run | Second half run |
+|---|---|---|
+| Train / validate / test | Jan to Apr / May / Jun | Jul to Oct / Nov / Dec |
+| Validation IC by architecture | 0.093 to 0.100 | 0.094 to 0.095 |
+| Model chosen on validation | LSTM, per-ticker heads | GRU, per-ticker heads |
+| Locked test IC (t-stat) | 0.1025 (25.2) | 0.0965 (24.6) |
+| Locked test balanced accuracy | 0.441 | 0.440 |
+| Stocks with positive test IC | 50 of 50 | 50 of 50 |
+
+In December the retrained ensemble scores 0.093 on the 22 continuing stocks and 0.099 on the
+28 new ones, against 0.091 and 0.092 for the frozen first half model. The result does not
+depend on the first half's stocks or months, and the three architectures again finish within
+0.01 of each other. Tables are in `results_h2_jul_dec/`.
+
 ## Linear baseline
 
 A least-squares model on the same 27 features, fit on January to April with the
@@ -224,6 +244,7 @@ feature and linear rows (`results/label_diagnostic.csv`).
   lookahead scramble test, label recomputation), trains, evaluates and runs the June test.
 - `results/`: validation and test metrics, per-stock and daily tables, training histories,
   bar coverage per stock-day, run configuration.
+- `results_h2_jul_dec/`: the same tables for the July to December replication, plus its December test.
 - `results_trailing_label/`: the same tables for the first (bounce-affected) label.
 - `backtest_costs.py`: the cost-aware backtest above (reads the notebook's per-window predictions and the bar cache; writes `results/backtest_*`).
 - `oos/`: the July to December out-of-sample scripts, the label diagnostic and linear baseline, the all-horizon evaluation and the permutation feature importance (they load the notebook's code and the saved checkpoints; set `L2_RAW_DIR` and `RESULTS_DIR`).
