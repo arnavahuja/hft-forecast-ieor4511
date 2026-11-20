@@ -126,6 +126,27 @@ A longer horizon narrows the gap but does not close it when crossing the spread;
 alone the most confident 120 s forecasts are roughly break-even. Tables are in
 `results/horizons/` (consecutive 120 s trades in one stock overlap by 15 s).
 
+## Feature importance (June locked test)
+
+Each feature's whole 60-bar input history was shuffled across windows of the same stock (one
+fixed shuffle, frozen LSTM ensemble, 60 s), and the drop in pooled IC from 0.1025 is its
+importance. Groups are shuffled jointly, which also captures features that stand in for one
+another (`oos/feature_importance.py`, `results/feature_importance_june.csv`).
+
+| Group shuffled | IC after | Share of IC lost |
+|---|---|---|
+| Price and volatility (returns, range, volatility, VWAP gap, tick) | 0.037 | 64% |
+| Order flow (signed volume and count imbalances) | 0.042 | 59% |
+| Activity (volume, trades, trade size, intensity, stock-relative volume) | 0.079 | 23% |
+| Context (time of day, afternoon flag, distance to price limits) | 0.097 | 6% |
+
+Largest single features: 5 s flow imbalance (19% of IC), 30 s flow imbalance (11%), 60 s and
+120 s returns (10% each). The tick size, 1 m volatility and seconds since the last trade add
+almost nothing on their own. Shuffled alone, the afternoon flag and `tod_sin` look important
+(15% and 9%) but the context group as a whole loses only 6%: shuffling one of them alone
+gives the model contradictory times of day, so their single-feature numbers overstate them.
+The shares add up to more than 100% because the two large groups overlap in what they carry.
+
 ## Cost-aware backtest
 
 `backtest_costs.py` scores the forecasts after costs. Thresholds are chosen on May and
@@ -205,7 +226,7 @@ feature and linear rows (`results/label_diagnostic.csv`).
   bar coverage per stock-day, run configuration.
 - `results_trailing_label/`: the same tables for the first (bounce-affected) label.
 - `backtest_costs.py`: the cost-aware backtest above (reads the notebook's per-window predictions and the bar cache; writes `results/backtest_*`).
-- `oos/`: the July to December out-of-sample scripts, the label diagnostic and linear baseline, and the all-horizon evaluation (they load the notebook's code and the saved checkpoints; set `L2_RAW_DIR` and `RESULTS_DIR`).
+- `oos/`: the July to December out-of-sample scripts, the label diagnostic and linear baseline, the all-horizon evaluation and the permutation feature importance (they load the notebook's code and the saved checkpoints; set `L2_RAW_DIR` and `RESULTS_DIR`).
 - `vm/`: scripts to run the notebook headless on a GCP GPU VM (`launch_cn.sh` creates the VM,
   copies the notebook, runs it with papermill, uploads results and powers the VM off).
 

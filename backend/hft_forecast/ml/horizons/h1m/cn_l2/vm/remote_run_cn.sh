@@ -7,7 +7,10 @@ BUCKET="gs://hftf-capstone-1109-taq"
 STAMP="$(date -u +%Y%m%dT%H%MZ)"
 OUT="$BUCKET/runs/cn_l2_$STAMP"
 cd "$HOME/run"
-trap 'gcloud storage cp run.log executed.ipynb "$OUT/" 2>/dev/null; gcloud storage cp -r cn_l2_60s_research/results_60s_multihorizon "$OUT/" 2>/dev/null; echo "$OUT" > last_run.txt; sudo poweroff' EXIT
+[ -f run.env ] && set -a && . ./run.env && set +a     # optional CN_* overrides for the notebook
+RES="cn_l2_60s_research/${CN_RESULTS_SUBDIR:-results_60s_multihorizon}"
+OUT="$OUT${CN_RESULTS_SUBDIR:+_$CN_RESULTS_SUBDIR}"
+trap 'gcloud storage cp run.log executed.ipynb "$OUT/" 2>/dev/null; gcloud storage cp -r "$RES" "$OUT/" 2>/dev/null; echo "$OUT" > last_run.txt; sudo poweroff' EXIT
 
 {
   echo "== $(date -u) start, GPU:"; nvidia-smi --query-gpu=name,memory.total --format=csv,noheader

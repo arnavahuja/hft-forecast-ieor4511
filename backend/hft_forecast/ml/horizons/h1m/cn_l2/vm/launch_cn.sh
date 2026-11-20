@@ -16,4 +16,5 @@ ssh_vm() { gcloud compute ssh hftf-run --zone="$Z" --project="$PR" --tunnel-thro
 for i in $(seq 1 15); do ssh_vm 'mkdir -p ~/run' >/dev/null 2>&1 && break; sleep 20; done
 gcloud compute scp --zone="$Z" --project="$PR" --tunnel-through-iap L2_China_60s_Trade_Forecasting.ipynb hftf-run:~/run/notebook.ipynb >/dev/null 2>&1
 gcloud compute scp --zone="$Z" --project="$PR" --tunnel-through-iap vm/remote_run_cn.sh hftf-run:~/run/remote_run_cn.sh >/dev/null 2>&1
+[ -f vm/run.env ] && gcloud compute scp --zone="$Z" --project="$PR" --tunnel-through-iap vm/run.env hftf-run:~/run/run.env >/dev/null 2>&1
 ssh_vm 'cd ~/run && ls && chmod +x remote_run_cn.sh && (setsid nohup ./remote_run_cn.sh >/dev/null 2>&1 < /dev/null &); echo launched' 2>&1 | grep -E "notebook|remote|launched"
