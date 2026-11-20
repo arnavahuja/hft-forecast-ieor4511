@@ -197,6 +197,58 @@ seller on a predicted rise) saves **0.36 bps per order in June** (t = 18.8; May 
 about 9% of what perfect foresight would save. Small per order, but it costs nothing,
 which is where a 60 s signal of this size is most useful.
 
+## Execution backtests: steered schedule and passive orders
+
+`backtest_execution.py` tests the uses that fit A-shares (T+1, restricted shorting): doing
+orders a desk must do anyway more cheaply. Every policy trades the same quantity, so fees
+and stamp duty cancel and only the price differs. Settings are chosen on each run's
+validation month (May, or November for the second half model) and applied unchanged later.
+Each test is repeated with the forecast shuffled within stock ("random"), which keeps how
+often the policy acts but removes the information. Buy and sell parents are scored together,
+so market drift cancels. Outputs are in `results/execution/`.
+
+**Steered schedule.** A parent order is spread over the day's 2 minute decision points.
+TWAP does one slice at each. The steered schedule falls behind TWAP by up to K slices when
+the forecast is adverse and runs ahead by up to K when it is favourable, and finishes at the
+last decision point. Chosen on validation: K = 8 slices (at most 16 minutes off the TWAP path)
+and act when |forecast| is above its median. Saving against TWAP, bps of the parent order:
+
+| Month | Stocks | Steered | t-stat | Random | Days positive |
+|---|---|---|---|---|---|
+| Jun (locked test) | all 50 | +0.84 | 3.5 | -0.06 | 80% |
+| Jul to Dec | 22 continuing | +0.92 to +2.59 | 2.0 to 5.3 | -0.42 to +0.55 | 74% to 91% |
+| Aug to Dec | 28 new (cold start) | +1.01 to +2.22 | 2.8 to 4.2 | -0.46 to +0.25 | 70% to 91% |
+| Dec (second half model, locked test) | all 50 | +1.03 | 4.0 | -0.32 | 78% |
+
+The saving is positive in all 15 month and stock-group cells, with both models, and the
+shuffled forecast gives about zero. On validation the saving grows with K (May: 0.51 bps at
+K = 1, 0.71 at 2, 0.87 at 4, 0.94 at 8), so even staying within one slice of TWAP helps.
+Market impact is ignored, which is fair only for parent orders that are small next to
+2 minute volume.
+
+**Passive orders.** A child order that must be done within 60 s either crosses now or rests
+one tick behind the last trade, and crosses at 60 s if not filled. With trades only there is
+no queue position, so a resting order counts as filled either only when a later trade prints
+through its price (conservative) or when one prints at it (optimistic). The switched policy
+rests unless the forecast says waiting is costly. Saving against crossing now, bps per order:
+
+| Fill rule | Always rest | Forecast-switched | Random-switched |
+|---|---|---|---|
+| Trade-through (conservative), June | -0.82 | -0.19 | -0.41 |
+| Trade-through, Jul to Dec, all groups | -0.60 to -1.52 | -0.07 to -0.51 | -0.27 to -0.73 |
+| Touch (optimistic), June | +3.35 | +3.24 | +3.22 |
+| Touch, Jul to Dec, all groups | +2.17 to +4.19 | +1.97 to +4.07 | +1.97 to +4.06 |
+
+Whether resting beats crossing depends on the fill rule, which trades alone cannot settle.
+Under the conservative rule, resting loses a little and the forecast recovers 0.15 to 0.3 bps
+over random switching in every month. Under the optimistic rule, resting saves 2 to 4 bps and
+the forecast adds almost nothing. So for passive execution the forecast is a small refinement,
+and order book data (queue position) would be needed to price the passive leg properly.
+
+**Takeaway.** The forecast pays where it decides *when* to trade: steering a day's schedule
+saves about 1 to 2.5 bps of the parent order against TWAP, every month, on stocks the model
+never saw, and with the retrained model. That is the clearest economic use of this 60 s signal.
+
 ## Comparison with the team's US runs
 
 The team's US Colab runs (v4 and v5 notebooks) used an earlier version of this pipeline
@@ -246,6 +298,7 @@ feature and linear rows (`results/label_diagnostic.csv`).
   bar coverage per stock-day, run configuration.
 - `results_h2_jul_dec/`: the same tables for the July to December replication, plus its December test.
 - `results_trailing_label/`: the same tables for the first (bounce-affected) label.
+- `backtest_execution.py`: the steered schedule and passive order backtests (writes `results/execution/`).
 - `backtest_costs.py`: the cost-aware backtest above (reads the notebook's per-window predictions and the bar cache; writes `results/backtest_*`).
 - `oos/`: the July to December out-of-sample scripts, the label diagnostic and linear baseline, the all-horizon evaluation and the permutation feature importance (they load the notebook's code and the saved checkpoints; set `L2_RAW_DIR` and `RESULTS_DIR`).
 - `vm/`: scripts to run the notebook headless on a GCP GPU VM (`launch_cn.sh` creates the VM,
