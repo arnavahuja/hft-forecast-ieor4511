@@ -1,0 +1,9 @@
+{
+ "stamp_duty_bps_sell": 5.0,
+ "commission_bps_per_leg": 1.0,
+ "exchange_fees_bps_per_leg": 0.5,
+ "fixed_round_trip_bps": 8.0,
+ "june_mean_tick_bps": 6.138638314476627,
+ "june_actual_abs_mean_bps": 7.801945038943227,
+ "june_predicted_abs_mean_bps": 1.2234981009607313
+}

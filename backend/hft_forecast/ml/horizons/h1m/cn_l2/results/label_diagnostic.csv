@@ -1,0 +1,32 @@
+check,trailing_label,forward_start_label
+linear model fit on Jan to Apr,0.1446,0.0621
+single feature: last_vs_vwap_bps,0.129,-0.0034
+single feature: ret_120s_bps,-0.0627,-0.0369
+single feature: ret_60s_bps,-0.051,-0.0247
+single feature: ret_5s_bps,0.0379,0.0038
+single feature: count_imbalance_1m,0.0313,0.0091
+single feature: flow_imbalance_1m,0.0294,0.0123
+single feature: ret_15s_bps,-0.028,-0.0013
+single feature: flow_imbalance_30s,0.0218,0.0264
+single feature: range_1m_bps,-0.0176,-0.0242
+single feature: vol_5m_bps,-0.015,-0.017
+single feature: afternoon,0.015,0.0109
+single feature: log_avg_trade_size_1m,0.0113,0.0043
+single feature: volatility_regime_ratio,0.0103,0.0035
+single feature: log_trades,-0.01,-0.0162
+single feature: flow_imbalance_5s,0.0096,0.0248
+single feature: tod_sin,-0.0088,-0.0048
+single feature: tick_bps,0.0076,0.0051
+single feature: dist_limit_up_pct,-0.0072,0.0009
+single feature: trade_intensity_ratio,0.007,-0.0038
+single feature: tod_cos,0.0055,0.0019
+single feature: log_volume_1m,-0.0052,-0.0137
+single feature: vol_1m_bps,-0.005,-0.0111
+single feature: dist_limit_down_pct,-0.0046,-0.0082
+single feature: log_volume,-0.0034,-0.0121
+single feature: volume_1m_stock_z,-0.0031,-0.0155
+single feature: log_secs_since_trade,0.0017,0.004
+single feature: flow_imbalance_5m,0.0002,-0.0135
+"Best sequence ensemble, Spearman IC on May",0.301,0.101
+"Best sequence ensemble, Spearman IC on June (locked)",0.3,0.1025
+"Rank corr(per-stock IC, tick size in bps), May",0.7,0.24

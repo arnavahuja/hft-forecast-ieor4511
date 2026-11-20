@@ -1,0 +1,21 @@
+trade_top_share,threshold_bps,costs,period,trades,trades_per_stock_day,hit_rate,gross_bps,gross_t,cost_bps,net_bps,positive_days,days,days_sign_p
+0.5,0.725,taker (1 tick spread),May (validation),49591,52.2011,0.5538,1.1946,19.7627,13.6307,-12.4361,0,19,0.0
+0.5,0.725,taker (1 tick spread),June (locked test),53834,53.834,0.5538,1.163,18.9956,13.49,-12.327,0,20,0.0
+0.5,0.725,fees only (no spread),May (validation),49591,52.2011,0.5538,1.1946,19.7627,8.0,-6.8054,0,19,0.0
+0.5,0.725,fees only (no spread),June (locked test),53834,53.834,0.5538,1.163,18.9956,8.0,-6.837,0,20,0.0
+0.2,1.652,taker (1 tick spread),May (validation),19837,20.8811,0.5798,1.8899,16.2722,12.7319,-10.8419,0,19,0.0
+0.2,1.652,taker (1 tick spread),June (locked test),22855,22.855,0.5775,1.9199,17.0537,12.7194,-10.7994,0,20,0.0
+0.2,1.652,fees only (no spread),May (validation),19837,20.8811,0.5798,1.8899,16.2722,8.0,-6.1101,0,19,0.0
+0.2,1.652,fees only (no spread),June (locked test),22855,22.855,0.5775,1.9199,17.0537,8.0,-6.0801,0,20,0.0
+0.1,2.496,taker (1 tick spread),May (validation),9919,10.4411,0.6046,2.5951,13.3883,12.438,-9.8429,0,19,0.0
+0.1,2.496,taker (1 tick spread),June (locked test),12074,12.074,0.5924,2.4941,14.031,12.5111,-10.017,0,20,0.0
+0.1,2.496,fees only (no spread),May (validation),9919,10.4411,0.6046,2.5951,13.3883,8.0,-5.4049,0,19,0.0
+0.1,2.496,fees only (no spread),June (locked test),12074,12.074,0.5924,2.4941,14.031,8.0,-5.5059,0,20,0.0
+0.05,3.521,taker (1 tick spread),May (validation),4960,5.2211,0.6292,3.5641,11.1692,12.3338,-8.7697,0,19,0.0
+0.05,3.521,taker (1 tick spread),June (locked test),6338,6.338,0.6155,3.5903,12.7734,12.4147,-8.8244,0,20,0.0
+0.05,3.521,fees only (no spread),May (validation),4960,5.2211,0.6292,3.5641,11.1692,8.0,-4.4359,0,19,0.0
+0.05,3.521,fees only (no spread),June (locked test),6338,6.338,0.6155,3.5903,12.7734,8.0,-4.4097,0,20,0.0
+0.01,7.018,taker (1 tick spread),May (validation),992,1.0442,0.6835,7.1711,6.7778,12.5081,-5.337,2,19,0.0007
+0.01,7.018,taker (1 tick spread),June (locked test),1429,1.429,0.6494,6.5492,8.1128,12.325,-5.7758,0,20,0.0
+0.01,7.018,fees only (no spread),May (validation),992,1.0442,0.6835,7.1711,6.7778,8.0,-0.8289,7,19,0.3593
+0.01,7.018,fees only (no spread),June (locked test),1429,1.429,0.6494,6.5492,8.1128,8.0,-1.4508,7,20,0.2632
