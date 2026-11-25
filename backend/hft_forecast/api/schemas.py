@@ -156,6 +156,23 @@ class MetricsOut(OutputModel):
     window: dict[str, str | None]
 
 
+class MlMetricsOut(OutputModel):
+    """Statistical metrics of an ML run, as ``hftf ml run`` stored them.
+
+    A backtest's metrics are a flat ``MetricValue`` map; an ML run's are nested per model
+    and per fold, so this is a separate endpoint rather than a widening of ``MetricsOut``.
+    ``models`` stays loosely typed: the payload holds confusion matrices, reliability bins
+    and bootstrap intervals the front end only reads a few keys from.
+    """
+
+    run_id: str
+    n_rows: int
+    n_sessions: int
+    n_folds: int
+    n_eff: float | None = None
+    models: dict[str, Any]
+
+
 class ChartInfoOut(OutputModel):
     """A chart available for a scope."""
 

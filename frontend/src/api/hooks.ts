@@ -31,6 +31,7 @@ export const keys = {
   run: (id: string) => ['run', id] as const,
   metrics: (id: string, w: Window) => ['run', id, 'metrics', w] as const,
   charts: (id: string) => ['run', id, 'charts'] as const,
+  mlMetrics: (id: string) => ['run', id, 'ml-metrics'] as const,
   chart: (id: string, name: string, w: Window, params: string) =>
     ['run', id, 'chart', name, w, params] as const,
   catalog: ['catalog'] as const,
@@ -107,6 +108,17 @@ export function useRunMetrics(id: string, window: Window, enabled = true) {
             query: { start: window.start ?? null, end: window.end ?? null },
           },
         }),
+      ),
+  })
+}
+
+export function useRunMlMetrics(id: string, enabled = true) {
+  return useQuery({
+    queryKey: keys.mlMetrics(id),
+    enabled,
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/runs/{run_id}/ml-metrics', { params: { path: { run_id: id } } }),
       ),
   })
 }

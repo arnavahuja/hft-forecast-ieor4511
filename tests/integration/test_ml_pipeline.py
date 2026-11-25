@@ -12,10 +12,14 @@ from pathlib import Path
 import polars as pl
 import pytest
 import yaml
+from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from hft_forecast.api.app import create_app
 from hft_forecast.cli import app
+from hft_forecast.core.config import Settings
 from hft_forecast.ml.base import PREDICTION_COLUMNS
+from hft_forecast.services.container import Services
 
 EXPERIMENT = {
     "experiment": "h30s",
@@ -72,6 +76,16 @@ def test_ml_pipeline_end_to_end(workspace):
     pooled = metrics["models"]["logit_ridge@1.0.0"]["pooled"]
     assert 0.0 <= pooled["accuracy"] <= 1.0
     assert metrics["n_eff"] < metrics["n_rows"]
+
+    # the UI reads these through the API: the backtest metric and chart endpoints have no
+    # answer for an ML run, so /ml-metrics is what the run detail page shows instead
+    settings = Settings(data_dir=tmp_path / "data", user_plugins_dir=tmp_path / "none")
+    with TestClient(create_app(services=Services.create(settings))) as client:
+        assert client.get(f"/api/v1/runs/{run_id}").json()["kind"] == "ml"
+        assert client.get(f"/api/v1/runs/{run_id}/metrics").status_code == 404
+        served = client.get(f"/api/v1/runs/{run_id}/ml-metrics")
+        assert served.status_code == 200
+        assert served.json()["models"]["logit_ridge@1.0.0"]["pooled"] == pooled
 
     economic = _invoke("ml", "econ", run_id)
     assert "AAA" in economic.output and "pooled per-bar mean" in economic.output

@@ -9,6 +9,7 @@ import {
   useRunCharts,
   useRunLogs,
   useRunMetrics,
+  useRunMlMetrics,
   useRunOverlays,
   useRunPositions,
   useRunTrades,
@@ -268,6 +269,62 @@ function PositionsTable({ runId }: { runId: string }) {
   )
 }
 
+/** Tabs a run of this kind can show: an ML run has no equity curve, trades or positions. */
+const ML_TAB_IDS: TabId[] = ['overview', 'config', 'logs']
+
+/** One row per model: the pooled out-of-sample metrics, baselines included. */
+function MlMetrics({ runId }: { runId: string }) {
+  const ml = useRunMlMetrics(runId)
+  const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(
+    () => [
+      { accessorKey: 'model', header: 'Model' },
+      ...(
+        [
+          ['ic', 'IC', true],
+          ['ic_t_stat', 'IC t-stat', true],
+          ['accuracy', 'Accuracy', false],
+          ['auc_up', 'AUC up', false],
+          ['auc_down', 'AUC down', false],
+          ['top_decile_ic', 'Top-decile IC', true],
+          ['n_rows', 'Rows', false],
+        ] as const
+      ).map(([key, header, signed]) => ({
+        accessorKey: key,
+        header,
+        meta: { numeric: true },
+        cell: (c: { getValue: () => unknown }) => {
+          const v = c.getValue() as number | null
+          return (
+            <span className={signed ? signClass(v ?? undefined) : undefined}>
+              {formatNumber(v ?? undefined, key === 'n_rows' ? 'integer' : 'ratio')}
+            </span>
+          )
+        },
+      })),
+    ],
+    [],
+  )
+  if (ml.isPending) return <Skeleton height={200} />
+  if (ml.isError) return <ErrorState error={ml.error} onRetry={() => void ml.refetch()} />
+  const rows = Object.entries(ml.data.models).map(([model, raw]) => {
+    const m = raw as { pooled: Record<string, number | null> & { top_decile?: { ic?: number } } }
+    return { model, ...m.pooled, top_decile_ic: m.pooled.top_decile?.ic ?? null }
+  })
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Stat label="Rows" value={formatNumber(ml.data.n_rows, 'integer')} />
+        <Stat label="Effective rows" value={formatNumber(ml.data.n_eff ?? undefined, 'integer')} />
+        <Stat label="Sessions" value={formatNumber(ml.data.n_sessions, 'integer')} />
+        <Stat label="Folds" value={formatNumber(ml.data.n_folds, 'integer')} />
+      </div>
+      <Card title="Out-of-sample metrics by model" padded={false}>
+        <DataTable data={rows} columns={columns} dense empty="No models" />
+      </Card>
+    </div>
+  )
+}
+
 function OverlayStats({ runId }: { runId: string }) {
   const overlays = useRunOverlays(runId)
   if (overlays.isPending) return <Skeleton height={120} />
@@ -387,10 +444,13 @@ export function RunDetailPage() {
   const navigate = useNavigate()
   const run = useRun(runId)
   const completed = run.data?.status === 'completed'
+  // an ML run stores nested per-model metrics and no backtest result, so the metric and
+  // chart endpoints 404 for it; its numbers come from /ml-metrics instead
+  const isMl = run.data?.kind === 'ml'
   const [tab, setTab] = useState<TabId>('overview')
   const [window, setWindow] = useState<Window>({})
-  const metrics = useRunMetrics(runId, window, completed)
-  const charts = useRunCharts(runId, completed)
+  const metrics = useRunMetrics(runId, window, completed && !isMl)
+  const charts = useRunCharts(runId, completed && !isMl)
   const logs = useRunLogs(runId, !completed && run.data?.status !== 'failed')
   const cancel = useCancelRun()
   const clone = useCloneRun()
@@ -480,7 +540,11 @@ export function RunDetailPage() {
       )}
       {completed && (
         <>
-          <Tabs tabs={TABS} active={tab} onChange={setTab} />
+          <Tabs
+            tabs={isMl ? TABS.filter((t) => ML_TAB_IDS.includes(t.id)) : TABS}
+            active={tab}
+            onChange={setTab}
+          />
           {(window.start ?? window.end) && (
             <div className="mb-3 flex items-center gap-3 rounded-md border border-accent/40 bg-accent/5 px-3 py-2 text-sm">
               <span>
@@ -492,7 +556,8 @@ export function RunDetailPage() {
               </Button>
             </div>
           )}
-          {tab === 'overview' && (
+          {tab === 'overview' && isMl && <MlMetrics runId={runId} />}
+          {tab === 'overview' && !isMl && (
             <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
               {HEADLINE.map((h) =>
                 metrics.isPending ? (
@@ -508,7 +573,7 @@ export function RunDetailPage() {
               )}
             </div>
           )}
-          {!['config', 'logs'].includes(tab) && (
+          {!isMl && !['config', 'logs'].includes(tab) && (
             <div className="space-y-4">
               {charts.isError && <ErrorState error={charts.error} />}
               <div className="grid gap-4 2xl:grid-cols-2">

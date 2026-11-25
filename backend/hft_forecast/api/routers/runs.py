@@ -17,6 +17,7 @@ from hft_forecast.api.schemas import (
     JobOut,
     LabelsUpdate,
     MetricsOut,
+    MlMetricsOut,
     OverlayStatsOut,
     PositionsOut,
     RunCreate,
@@ -145,6 +146,13 @@ def run_metrics(
         values=values,
         window={"start": start, "end": end},
     )
+
+
+@router.get("/{run_id}/ml-metrics", response_model=MlMetricsOut)
+def run_ml_metrics(run_id: str, services: ServicesDep) -> MlMetricsOut:
+    """Statistical metrics of an ML run, per model and per fold."""
+    services.store.get(run_id)
+    return MlMetricsOut(run_id=run_id, **services.store.ml_metrics(run_id))
 
 
 @router.get("/{run_id}/charts", response_model=list[ChartInfoOut])

@@ -523,6 +523,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/runs/{run_id}/ml-metrics': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Run Ml Metrics
+     * @description Statistical metrics of an ML run, per model and per fold.
+     */
+    get: operations['run_ml_metrics_api_v1_runs__run_id__ml_metrics_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/runs/{run_id}/charts': {
     parameters: {
       query?: never
@@ -1784,6 +1804,29 @@ export interface components {
       window: {
         [key: string]: string | null
       }
+    }
+    /**
+     * MlMetricsOut
+     * @description Statistical metrics of an ML run, as ``hftf ml run`` stored them.
+     *
+     *     A backtest's metrics are a flat ``MetricValue`` map; an ML run's are nested per model
+     *     and per fold, so this is a separate endpoint rather than a widening of ``MetricsOut``.
+     *     ``models`` stays loosely typed: the payload holds confusion matrices, reliability bins
+     *     and bootstrap intervals the front end only reads a few keys from.
+     */
+    MlMetricsOut: {
+      /** Run Id */
+      run_id: string
+      /** N Rows */
+      n_rows: number
+      /** N Sessions */
+      n_sessions: number
+      /** N Folds */
+      n_folds: number
+      /** N Eff */
+      n_eff: number | null
+      /** Models */
+      models: Record<string, unknown>
     }
     /**
      * OverlayStatsOut
@@ -3061,6 +3104,37 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['MetricsOut']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  run_ml_metrics_api_v1_runs__run_id__ml_metrics_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        run_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MlMetricsOut']
         }
       }
       /** @description Validation Error */

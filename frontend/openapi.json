@@ -1315,6 +1315,49 @@
         }
       }
     },
+    "/api/v1/runs/{run_id}/ml-metrics": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Run Ml Metrics",
+        "description": "Statistical metrics of an ML run, per model and per fold.",
+        "operationId": "run_ml_metrics_api_v1_runs__run_id__ml_metrics_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MlMetricsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/runs/{run_id}/charts": {
       "get": {
         "tags": [
@@ -4264,6 +4307,52 @@
         ],
         "title": "MetricsOut",
         "description": "Metric descriptors and values for one run."
+      },
+      "MlMetricsOut": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "n_rows": {
+            "type": "integer",
+            "title": "N Rows"
+          },
+          "n_sessions": {
+            "type": "integer",
+            "title": "N Sessions"
+          },
+          "n_folds": {
+            "type": "integer",
+            "title": "N Folds"
+          },
+          "n_eff": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Eff"
+          },
+          "models": {
+            "type": "object",
+            "title": "Models"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "n_rows",
+          "n_sessions",
+          "n_folds",
+          "n_eff",
+          "models"
+        ],
+        "title": "MlMetricsOut",
+        "description": "Statistical metrics of an ML run, as ``hftf ml run`` stored them.\n\nA backtest's metrics are a flat ``MetricValue`` map; an ML run's are nested per model\nand per fold, so this is a separate endpoint rather than a widening of ``MetricsOut``.\n``models`` stays loosely typed: the payload holds confusion matrices, reliability bins\nand bootstrap intervals the front end only reads a few keys from."
       },
       "OverlayStatsOut": {
         "properties": {
