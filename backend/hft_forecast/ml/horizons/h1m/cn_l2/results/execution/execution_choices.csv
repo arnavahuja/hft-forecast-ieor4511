@@ -1,0 +1,3 @@
+run,validation,schedule_quantile,schedule_threshold_bps,schedule_K,passive_quantile_trade-through,passive_quantile_touch,passive_threshold_bps_trade-through,passive_threshold_bps_touch
+first half model (Jan to Apr train),202505,0.5,0.7275940534364089,8,0.0,0.9,3.5502516823271435e-05,2.5123871151105135
+second half model (Jul to Oct train),202511,0.5,0.7000772214929233,8,0.0,0.9,7.949357673453505e-06,2.5390213490531814
