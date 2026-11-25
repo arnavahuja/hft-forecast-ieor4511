@@ -9,6 +9,7 @@ from hft_forecast.ml.features import (  # noqa: F401  - registration
     book,
     ofi,
     quote_dynamics,
+    session_context,
 )
 from hft_forecast.ml.features.registry import (
     FEATURE_SETS,

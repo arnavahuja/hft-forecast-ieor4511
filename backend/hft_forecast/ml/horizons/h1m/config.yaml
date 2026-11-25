@@ -27,6 +27,12 @@ features:
       windows: [1, 6, 12]     # 5 s, 30 s and 1 min of order flow
       depth_window: 60
   - name: quote_dynamics
+  - name: session_context
+    params:
+      long_bars: 360          # 30 min on this grid, the longest lookback in the project
+      bucket_seconds: 1800    # the half-hour buckets of Heston, Korajczyk and Sadka (2010)
+      hist_sessions: 20       # a month of sessions behind each time-of-day average
+      edge_minutes: 30
 # The duration-weighted mid, not the snapshot mid: on the raw mid most of the measured IC
 # was bid-ask bounce, which showed up as gross edge that scaled with the spread (corr 0.93)
 # and vanished in the tight names. Set it back to `mid` to reproduce the old numbers.
